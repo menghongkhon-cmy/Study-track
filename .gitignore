@@ -1,0 +1,7 @@
+__pycache__/
+*.py[cod]
+studytrack.sqlite3
+studytrack.sqlite3-shm
+studytrack.sqlite3-wal
+/upload/
+/uploads/

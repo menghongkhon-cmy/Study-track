@@ -1,0 +1,63 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#0b1120">
+  <meta name="application-name" content="StudyTrack">
+  <meta name="description" content="A welcoming study planner and score manager for students and teachers.">
+  <meta property="og:site_name" content="StudyTrack">
+  <meta property="og:type" content="website">
+  <meta property="og:title" content="StudyTrack — Your learning, in focus">
+  <meta property="og:description" content="Plan study time, track scores, share assignments, and stay connected with your class.">
+  <title>StudyTrack — Your learning, in focus</title>
+  <link rel="icon" type="image/png" sizes="192x192" href="assets/images/studytrack-icon.png">
+  <link rel="apple-touch-icon" sizes="180x180" href="assets/images/studytrack-apple-touch-icon.png">
+  <link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+  <div id="app-shell" class="app-shell hidden">
+    <aside class="sidebar" id="sidebar">
+      <a class="brand" href="#dashboard" data-page="dashboard" aria-label="StudyTrack dashboard">
+        <span class="brand-mark"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5v-16Z"/><path d="M4 17.5A2.5 2.5 0 0 1 6.5 15H20M8 7h8M8 10h6"/></svg></span>
+        <span class="brand-copy"><strong>StudyTrack</strong><small>PERSONAL STUDY SPACE</small></span>
+      </a>
+      <div class="sidebar-label">WORKSPACE</div>
+      <nav class="nav-list" aria-label="Main navigation">
+        <button class="nav-item active" data-page="dashboard"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m3 10 9-7 9 7v10a1 1 0 0 1-1 1h-5v-7H9v7H4a1 1 0 0 1-1-1z"/></svg></span>Dashboard</button>
+        <button class="nav-item" data-page="subjects"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H20v16H6.5A2.5 2.5 0 0 0 4 21.5z"/><path d="M4 17.5A2.5 2.5 0 0 1 6.5 15H20M8 7h8"/></svg></span>Subjects</button>
+        <button class="nav-item" data-page="scores"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 19V5M4 19h17"/><path d="m7 15 4-4 3 2 5-6"/><circle cx="19" cy="7" r="1"/></svg></span>Score tracker</button>
+        <button class="nav-item" data-page="planner"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3.5" y="5" width="17" height="16" rx="2"/><path d="M7.5 3v4M16.5 3v4M4 9.5h16M8 13h2m4 0h2m-8 4h2"/></svg></span>Study planner</button>
+        <button class="nav-item" data-page="timer"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="8.5"/><path d="M12 8v5l3 2M9 2h6M18.5 5.5 20 4"/></svg></span>Pomodoro timer</button>
+        <button class="nav-item" data-page="goals"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1"/></svg></span>Study goals</button>
+        <button class="nav-item" data-page="notes"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 3h9l4 4v14H6a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2z"/><path d="M14 3v5h5M8 12h8M8 16h8"/></svg></span>Personal notes</button>
+        <button class="nav-item" data-page="analytics"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 20V4M4 20h17"/><rect x="7" y="12" width="3" height="5" rx=".5"/><rect x="13" y="8" width="3" height="9" rx=".5"/><rect x="19" y="5" width="2" height="12" rx=".5"/></svg></span>Analytics</button>
+        <button class="nav-item" data-page="achievements"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 3 2.6 5.3 5.9.9-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.9z"/></svg></span>Achievements</button>
+        <button class="nav-item" data-page="classroom"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 5.5 12 3l9 2.5v12L12 20l-9-2.5z"/><path d="M12 3v17M6 9h3m6 0h3M6 13h3m6 0h3"/></svg></span>Classroom</button>
+        <button class="nav-item" data-page="messages"><span class="nav-icon">✉</span>Messages</button>
+        <button class="nav-item hidden" data-page="admin" id="admin-nav"><span class="nav-icon">⚙</span>Admin console</button>
+      </nav>
+      <div class="sidebar-bottom">
+        <button class="nav-item" data-page="settings"><span class="nav-icon"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.9l.1.1-1.7 2.9-.2-.1a1.7 1.7 0 0 0-1.9.3l-.1.1h-3.4l-.1-.2a1.7 1.7 0 0 0-1.5-1l-.4.1-2.9-1.7.1-.2A1.7 1.7 0 0 0 7.4 15l-.2-.1v-3.4l.2-.1a1.7 1.7 0 0 0 1-1.5l-.1-.4L10 6.6l.2.1a1.7 1.7 0 0 0 1.9-.3l.1-.1h3.4l.1.2a1.7 1.7 0 0 0 1.5 1l.4-.1 2.9 1.7-.1.2a1.7 1.7 0 0 0 .3 1.9l.1.1v3.4z"/></svg></span>Settings & privacy</button>
+        <div class="privacy-mini"><span class="privacy-dot"></span><span><b>Private account space</b><small>Your records sync to your account</small></span></div>
+        <div class="profile-chip"><div class="avatar" id="sidebar-avatar">S</div><div class="profile-meta"><b id="sidebar-name">Student</b><small>Personal workspace</small></div><button class="signout-link" data-action="logout" title="Sign out of StudyTrack">Sign out</button><button class="icon-btn tiny" data-action="open-settings" aria-label="Open settings">···</button></div>
+      </div>
+    </aside>
+
+    <div class="main-column">
+      <header class="topbar">
+        <div class="topbar-left"><button class="icon-btn menu-toggle" id="menu-toggle" aria-label="Open navigation">☰</button><span class="breadcrumb">Personal workspace <span>/</span> <b id="breadcrumb-page">Dashboard</b></span></div>
+        <div class="topbar-actions"><span class="local-indicator" id="sync-pill"><i></i><span id="sync-label">Account sync</span></span><button class="icon-btn" id="theme-toggle" aria-label="Toggle theme" title="Toggle light/dark theme"><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M20.5 15.2A8.5 8.5 0 0 1 8.8 3.5 8.5 8.5 0 1 0 20.5 15.2Z"/></svg></button><button class="top-avatar" id="top-avatar" data-action="open-settings" aria-label="Open profile settings">S</button></div>
+      </header>
+      <main id="page-view" class="page-view" tabindex="-1"></main>
+      <footer class="app-footer"><span>StudyTrack <span class="footer-sep">·</span> your progress, your pace</span><span><span class="privacy-dot"></span> Saved to your account</span></footer>
+    </div>
+  </div>
+
+  <div id="auth-root" class="auth-root"></div>
+  <div id="modal-root"></div>
+  <div id="toast-region" class="toast-region" aria-live="polite" aria-atomic="true"></div>
+  <div id="lock-screen" class="lock-screen hidden"></div>
+  <script type="module" src="js/app.js"></script>
+</body>
+</html>

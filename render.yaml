@@ -1,0 +1,24 @@
+services:
+  - type: web
+    name: studytrack
+    runtime: python
+    plan: starter
+    region: singapore
+    buildCommand: "true"
+    startCommand: python server.py
+    healthCheckPath: /
+    disk:
+      name: studytrack-data
+      mountPath: /var/data
+      sizeGB: 1
+    envVars:
+      - key: STUDYTRACK_HOST
+        value: 0.0.0.0
+      - key: STUDYTRACK_DB
+        value: /var/data/studytrack.sqlite3
+      - key: STUDYTRACK_SECURE_COOKIE
+        value: "1"
+      - key: STUDYTRACK_TEACHER_CODE
+        sync: false
+      - key: STUDYTRACK_ADMIN_CODE
+        sync: false
