@@ -1,0 +1,4 @@
+# StudyTrack uses only the Python standard library.
+# Keep this file for hosts configured to run: pip install -r requirements.txt
+flask
+gunicorn
