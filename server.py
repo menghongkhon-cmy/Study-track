@@ -672,6 +672,13 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                 else:
                     self.oauth_start(provider)
                 return
+            if path == "/api/health":
+                # Render should verify that the Python API and its database are
+                # reachable, rather than treating a static homepage as healthy.
+                with connect_db() as db:
+                    db.execute("SELECT 1").fetchone()
+                self.send_json({"ok": True, "service": "StudyTrack API"})
+                return
             if path == "/api/session":
                 user = self.session()
                 self.send_json({"user": {k: user[k] for k in ("id","email","name","role")} if user else None,

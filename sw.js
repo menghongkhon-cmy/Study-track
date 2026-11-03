@@ -1,10 +1,11 @@
-const CACHE_NAME = "studytrack-shell-v1";
+const CACHE_NAME = "studytrack-shell-v2";
 const SHELL_FILES = [
   "/",
   "/index.html",
   "/manifest.json",
   "/css/style.css",
   "/js/app.js",
+  "/js/icons.js",
   "/js/pwa.js",
   "/js/storage.js",
   "/js/auth.js",
@@ -23,7 +24,8 @@ const SHELL_FILES = [
   "/assets/images/studytrack-icon.png",
   "/assets/images/studytrack-icon-512.png",
   "/assets/images/studytrack-maskable-512.png",
-  "/assets/images/studytrack-apple-touch-icon.png"
+  "/assets/images/studytrack-apple-touch-icon.png",
+  "/assets/images/angkor-wat-dawn.png"
 ];
 
 self.addEventListener("install", event => {

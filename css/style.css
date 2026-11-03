@@ -551,3 +551,75 @@ body.light-theme{--bg:#f4f7ff;--sidebar:#fff;--card:#fff;--card-2:#fff;--text:#1
 .oauth-divider{display:flex;align-items:center;gap:10px;margin:16px 0 10px;color:#8b95a9;font-size:9px}.oauth-divider::before,.oauth-divider::after{content:"";height:1px;flex:1;background:#e8ebf2}.oauth-login-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}.oauth-login-button{min-height:39px;display:flex;align-items:center;justify-content:center;gap:7px;border:1px solid #e1e5ee;border-radius:10px;background:#fff;color:#2a3651;text-decoration:none;font-size:10px;font-weight:700;transition:transform .18s,border-color .18s,box-shadow .18s}.oauth-login-button:hover{transform:translateY(-2px);border-color:#bdb0fb;box-shadow:0 8px 18px rgba(72,82,120,.09)}.oauth-login-button:focus-visible{outline:3px solid rgba(124,96,239,.3);outline-offset:2px}.oauth-logo{width:19px;height:19px;display:grid;place-items:center;border-radius:6px;font-size:10px;font-weight:800}.oauth-logo.google{color:#4285f4;background:#f1f5ff}.oauth-logo.github{color:#fff;background:#242b39;font-size:7px;letter-spacing:-.4px}.oauth-logo.telegram{color:#188fc5;background:#e8f7ff}.oauth-login-note{margin:9px 0 0;text-align:center;color:#8b95a9;font-size:8px;line-height:1.5}.oauth-settings-card{margin-top:17px;padding:14px 15px;border:1px solid var(--line);border-radius:13px;background:var(--card-soft)}.oauth-settings-card h3{margin:0 0 3px;color:var(--text);font-size:11px}.oauth-settings-card>p{margin:0 0 10px;color:var(--muted);font-size:8px;line-height:1.5}.oauth-provider-list{display:grid;gap:6px}.oauth-provider-row{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:8px 10px;border:1px solid var(--line);border-radius:10px;background:var(--card)}.oauth-provider-row>span:first-child{display:grid;gap:1px}.oauth-provider-row b{color:var(--text);font-size:9px}.oauth-provider-row small{color:var(--muted);font-size:8px}.oauth-connected{display:flex;align-items:center;gap:5px;color:var(--green);font-size:8px;font-weight:700}.oauth-connected i{width:6px;height:6px;border-radius:50%;background:var(--green)}.oauth-provider-row .btn{min-height:29px;padding:0 10px;font-size:8px}.oauth-provider-row .btn:disabled{opacity:.55;cursor:wait}
 @media(max-width:540px){.oauth-login-grid{gap:5px}.oauth-login-button{gap:4px;font-size:9px}.oauth-logo{width:17px;height:17px}.oauth-settings-card{padding:12px}}
 .oauth-logo{width:20px;height:20px;border-radius:0;background:transparent!important}.oauth-logo svg{display:block;width:100%;height:100%}.oauth-logo.google{color:initial}.oauth-logo.github{color:#24292f;font-size:initial}.oauth-logo.telegram{color:#229ed9}
+
+/* A single Angkor Wat image anchors the visual identity on every screen. */
+body{position:relative;isolation:isolate;background:transparent}
+body::before{content:"";position:fixed;inset:0;z-index:-1;background:linear-gradient(135deg,rgba(7,13,25,.82),rgba(13,22,37,.72)),url("../assets/images/angkor-wat-dawn.png") center 48%/cover no-repeat;pointer-events:none}
+body.light-theme{background:transparent}
+body.light-theme::before{background-image:linear-gradient(135deg,rgba(242,246,255,.82),rgba(246,249,255,.77)),url("../assets/images/angkor-wat-dawn.png");background-position:center 48%;background-size:cover;background-repeat:no-repeat}
+body.light-theme{--card:rgba(255,255,255,.9);--card-2:rgba(255,255,255,.86);--card-soft:rgba(255,255,255,.82)}
+.auth-root,.auth-screen{background:transparent}
+.auth-visual{background:linear-gradient(140deg,rgba(34,39,85,.48),rgba(24,91,113,.35)),url("../assets/images/angkor-wat-dawn.png") center/cover no-repeat}
+.sidebar{background:rgba(11,20,35,.88);backdrop-filter:blur(18px)}
+.topbar{background:rgba(11,17,32,.72)}
+.light-theme .sidebar{background:rgba(255,255,255,.86);backdrop-filter:blur(18px)}
+.light-theme .topbar{background:rgba(248,250,255,.76)}
+.studytrack-icon{display:inline-flex;width:1em;height:1em;align-items:center;justify-content:center;flex:0 0 auto;vertical-align:-.13em;line-height:1}
+.studytrack-icon svg{display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.nav-icon .studytrack-icon,.stat-icon .studytrack-icon,.empty-icon .studytrack-icon,.icon-btn .studytrack-icon,.card-menu .studytrack-icon{width:1.12em;height:1.12em}
+.hero-spark .studytrack-icon,.eyebrow-spark .studytrack-icon{width:1em;height:1em}
+@media(max-width:760px){body::before{background-position:58% center}body.light-theme::before{background-position:58% center}}
+
+/* Responsive form sizing and touch-friendly controls across StudyTrack. */
+.form-group>.field,.form-group>.select-field,.form-group>textarea{width:100%;min-width:0}
+.auth-form,.auth-form-inner{width:100%;min-width:0}
+.auth-form .form-group{min-width:0}
+.auth-form .field{width:100%;min-width:0}
+.auth-role-picker{width:100%;grid-template-columns:repeat(3,minmax(0,1fr))}
+.auth-role-picker button{min-width:0;white-space:nowrap}
+.auth-submit{width:100%}
+.auth-error{min-width:0;overflow-wrap:anywhere}
+img,svg,canvas{max-width:100%}
+@media(max-width:760px){
+  html,body{max-width:100%;overflow-x:hidden}
+  .auth-screen{min-height:100svh;min-height:100dvh;align-items:start;padding:14px 12px max(20px,env(safe-area-inset-bottom));}
+  .auth-panel{width:min(560px,100%);min-width:0;min-height:0;grid-template-columns:minmax(0,1fr);}
+  .auth-form-panel{width:100%;min-width:0;padding:28px 22px 24px;}
+  .auth-form-inner{width:100%;max-width:430px;}
+  .auth-welcome h2{font-size:clamp(24px,7vw,29px);line-height:1.12;}
+  .auth-welcome p{font-size:12px;line-height:1.55;margin-bottom:17px;}
+  .auth-role-picker{gap:4px;padding:4px;margin-bottom:17px;}
+  .auth-role-picker button{min-height:44px;gap:5px;padding:0 5px;font-size:11px;}
+  .auth-role-picker button .studytrack-icon{width:15px;height:15px;}
+  .auth-form{gap:13px;}
+  .auth-form .form-group{gap:6px;}
+  .auth-form .form-group label{font-size:12px;}
+  .auth-form .field{height:48px;min-height:48px;padding:11px 13px;font-size:16px;border-radius:12px;}
+  .auth-form .help-text,.auth-security-note{font-size:10px;line-height:1.5;}
+  .auth-submit{min-height:50px;font-size:13px;}
+  .auth-switch{font-size:11px;}
+  .oauth-login-grid{gap:6px;}
+  .oauth-login-button{min-height:43px;gap:5px;font-size:10px;}
+  .oauth-login-note{font-size:9px;line-height:1.5;}
+  .page-view{min-width:0;width:100%;padding:19px 13px 28px;}
+  .topbar{padding-left:12px;padding-right:12px;}
+  .page-heading,.panel-head,.section-heading{min-width:0;}
+  .grid-2,.grid-2.equal,.timer-layout,.planner-layout,.settings-layout,.messages-layout,.class-chat-layout{grid-template-columns:minmax(0,1fr);}
+  .section-grid,.note-grid,.achievement-grid,.classroom-grid,.assignment-grid{grid-template-columns:minmax(0,1fr);}
+  .table-wrap,.admin-table-wrap,.calendar-wrap{max-width:100%;overflow-x:auto;}
+  .modal-backdrop{align-items:flex-start;padding:10px;overflow-y:auto;}
+  .modal{width:min(560px,100%);max-height:calc(100dvh - 20px);}
+  .pwa-install-button{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));}
+  body:has(#auth-root:not(.hidden)) .pwa-install-button{display:none!important;}
+}
+@media(max-width:420px){
+  .auth-screen{padding-left:9px;padding-right:9px;}
+  .auth-panel{border-radius:19px;}
+  .auth-form-panel{padding:24px 17px 21px;}
+  .auth-role-picker button{gap:3px;padding:0 3px;font-size:10px;}
+  .auth-role-picker button .studytrack-icon{width:14px;height:14px;}
+  .oauth-login-grid{gap:4px;}
+  .oauth-login-button{gap:4px;padding:0 4px;font-size:9px;}
+  .oauth-logo{width:17px;height:17px;}
+  .page-view{padding-left:11px;padding-right:11px;}
+}

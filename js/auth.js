@@ -1,6 +1,6 @@
 const sessionState={user:null,csrf:"",active:false,suppressSync:false};
 const writeQueues=new Map();
-const serverSetupHelp="StudyTrack could not reach its account API. Start this project with `python server.py` (or set that as the Render start command) and open the same web service URL so the app and API share one origin.";
+const serverSetupHelp="StudyTrack's account API is unavailable at this address. In Render, deploy this repository as a Python Web Service (not a Static Site) with start command `python server.py`. After deployment, open `/api/health` on this same domain; it should return `{\"ok\":true}`. Then refresh StudyTrack.";
 globalThis.StudyTrackAuth=sessionState;
 
 export function currentUser(){return sessionState.user;}
@@ -12,10 +12,14 @@ export async function apiRequest(path,{method="GET",body,authWrite=false}={}){
   const headers={"Accept":"application/json"};
   if(body!==undefined)headers["Content-Type"]="application/json";
   if(authWrite&&sessionState.csrf)headers["X-CSRF-Token"]=sessionState.csrf;
-  let response;
-  try{response=await fetch(path,{method,headers,credentials:"same-origin",body:body===undefined?undefined:JSON.stringify(body)});}
+  if(window.location.protocol==="file:")throw new Error(serverSetupHelp);
+  let response;const requestUrl=new URL(path,window.location.origin);
+  if(requestUrl.origin!==window.location.origin)throw new Error(serverSetupHelp);
+  try{response=await fetch(requestUrl.pathname+requestUrl.search,{method,headers,credentials:"same-origin",cache:"no-store",body:body===undefined?undefined:JSON.stringify(body)});}
   catch{throw new Error(serverSetupHelp);}
-  let payload={};try{payload=await response.json();}catch{}
+  const isJson=(response.headers.get("content-type")||"").toLowerCase().includes("application/json");
+  let payload={};if(isJson){try{payload=await response.json();}catch{}}
+  if(!isJson&&path.startsWith("/api/"))throw new Error(serverSetupHelp);
   if(!response.ok){if([404,405,501].includes(response.status))throw new Error(serverSetupHelp);throw new Error(payload.error||`Request failed (${response.status}).`);}
   if(path.startsWith("/api/")&&(!payload||typeof payload!=="object"||Array.isArray(payload)))throw new Error(serverSetupHelp);
   return payload;

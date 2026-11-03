@@ -15,6 +15,10 @@ On Windows, run `py -m pip install -r requirements.txt` and then `py server.py` 
 
 If sign-up shows `405`, the page is being served without the account API. Start `py server.py` in the project folder and use the `127.0.0.1:8000` address above; do not open `index.html` directly or use a static preview link.
 
+For Render, deploy this repository as a **Python Web Service**, keep the build command `pip install -r requirements.txt`, and use `python server.py` as the start command. The Render health check uses `/api/health`; opening that path on the service domain should return `{"ok":true,"service":"StudyTrack API"}`. If it does not, the browser app and account API are not running together on that service yet.
+
+The interface uses a consistent Angkor Wat background and locally bundled SVG icons. Both are included in the offline app shell.
+
 The server creates `studytrack.sqlite3` in this folder for accounts, study data, classes, assignments, submissions, uploaded files, and classroom messages. Keep that file on persistent storage and back it up securely.
 
 ## Student and teacher accounts
