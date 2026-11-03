@@ -30,6 +30,8 @@ export async function authenticate(mode,form){const payload=await apiRequest(`/a
 export async function logout(){if(sessionState.active)await apiRequest("/api/logout",{method:"POST",body:{},authWrite:true});clearSession();}
 export async function getRemoteData(){return (await apiRequest("/api/data")).data||{};}
 export async function uploadData(data){await apiRequest("/api/data",{method:"PUT",body:{data},authWrite:true});}
+export async function getAppSettings(){return apiRequest("/api/app/settings");}
+export async function updateAdminSettings(settings){return apiRequest("/api/admin/settings",{method:"PUT",body:settings,authWrite:true});}
 export async function updateAccount(name){const payload=await apiRequest("/api/account",{method:"PATCH",body:{name},authWrite:true});sessionState.user=payload.user||sessionState.user;}
 export async function deleteRemoteData(){await apiRequest("/api/data",{method:"DELETE",authWrite:true});}
 

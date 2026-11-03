@@ -35,6 +35,15 @@ const svgPaths = {
   bookMark: '<path d="M6 3h12a2 2 0 0 1 2 2v16l-8-4-8 4V5a2 2 0 0 1 2-2Z"/>',
   alert: '<path d="m10.3 3.9-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.7-3.1l-8-14a2 2 0 0 0-3.4 0Z"/><path d="M12 9v4m0 4h.01"/>',
   list: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="M4 6h.01M4 12h.01M4 18h.01"/>',
+  clipboardList: '<rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 4V3h6v1M9 9h6M9 13h6M9 17h3M7 9h.01M7 13h.01M7 17h.01"/>',
+  listCheck: '<path d="M9 6h11M9 12h11M9 18h11"/><path d="m3.5 6 1.2 1.2L7 4.8m-3.5 7.2 1.2 1.2L7 11m-3.5 7 1.2 1.2L7 17"/>',
+  student: '<circle cx="12" cy="8" r="3.2"/><path d="M5 20v-1.4a7 7 0 0 1 14 0V20z"/>',
+  teacher: '<path d="m3 8 9-4 9 4-9 4-9-4Z"/><path d="M7 10v5c3 2.5 7 2.5 10 0v-5M21 8v6"/>',
+  copy: '<rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v9a2 2 0 0 0 2 2h3"/>',
+  globe: '<circle cx="12" cy="12" r="9"/><path d="M3 12h18M12 3a14 14 0 0 1 0 18M12 3a14 14 0 0 0 0 18"/>',
+  image: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5L5 20"/>',
+  camera: '<path d="M4 7h3l1.5-2h7L17 7h3a1 1 0 0 1 1 1v11H3V8a1 1 0 0 1 1-1Z"/><circle cx="12" cy="13" r="3.5"/>',
+  wallpaper: '<rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="8.5" cy="9" r="1.5"/><path d="m21 15-5-5-4 4-2-2-7 7"/>',
 };
 
 const glyphs = new Map([
@@ -54,6 +63,12 @@ function iconElement(name) {
   wrapper.setAttribute("aria-hidden", "true");
   wrapper.innerHTML = `<svg viewBox="0 0 24 24" focusable="false">${svgPaths[name]}</svg>`;
   return wrapper;
+}
+
+export function iconMarkup(name, className="") {
+  const path = svgPaths[name] || svgPaths.sparkle;
+  const classes = ["studytrack-icon", className].filter(Boolean).join(" ");
+  return `<span class="${classes}" aria-hidden="true"><svg viewBox="0 0 24 24" focusable="false">${path}</svg></span>`;
 }
 
 function replaceGlyph(node) {

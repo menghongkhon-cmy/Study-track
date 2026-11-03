@@ -106,10 +106,13 @@ The app stores account data and submissions in the server's SQLite database so u
 - Personal notes use a document-style editor with headings, emphasis, lists, and quote formatting. Saved documents are sanitized before display.
 - Interactive charts and statistics calculated from each signed-in user's records.
 - Light and dark themes, subtle transitions, reduced-motion support, responsive navigation, and empty states.
+- Switch the interface between English and Khmer from the sign-in screen or top bar; your choice is saved in this browser.
+- Admins can set a shared Angkor Wat or animated aurora background, or upload a GIF/image that is saved in the app database.
 - Profile initials or an uploaded profile picture. Pictures are resized in the browser and stored with the account's app data.
 - Optional profile cover photos and short bios. Profiles can be shared with classmates, with any StudyTrack account, or kept private. When a profile is private or only shared with classmates, other accounts can see only the person's name and role. Emails and academic records are not returned by the profile-view endpoint.
 - JSON backup export/import, confirmed account-data deletion, and an optional local PIN for casual privacy.
 - Teacher, student, and protected admin roles; private class join codes; file/folder submissions; teacher feedback and grades; multi-question class quizzes; private class-member chat; and email-address lookup for chats between StudyTrack accounts.
+- Class join codes include a working one-click copy button. Profile settings use a cover-and-avatar layout and keep the existing sharing controls.
 
 ## Privacy and security
 

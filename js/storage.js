@@ -56,7 +56,7 @@ export function noteContentHtml(value = "") { return sanitizeNoteHtml(value) || 
 export function formatDate(value, options = { month: "short", day: "numeric", year: "numeric" }) {
   if (!value) return "—";
   const date = new Date(`${String(value).slice(0, 10)}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString(undefined, options);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString(document.documentElement.lang === "km" ? "km-KH" : undefined, options);
 }
 export function percent(obtained, maximum) { return maximum > 0 ? Math.max(0, Math.min(100, (Number(obtained) / Number(maximum)) * 100)) : 0; }
 export function getSettings() {

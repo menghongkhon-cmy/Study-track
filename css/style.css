@@ -623,3 +623,70 @@ img,svg,canvas{max-width:100%}
   .oauth-logo{width:17px;height:17px;}
   .page-view{padding-left:11px;padding-right:11px;}
 }
+
+/* Admin-selected global backgrounds, including animated color light. */
+body[data-admin-background="aurora"]::before{background-image:radial-gradient(ellipse at 18% 22%,rgba(87,91,220,.42),transparent 38%),radial-gradient(ellipse at 80% 15%,rgba(30,191,195,.30),transparent 36%),radial-gradient(ellipse at 65% 84%,rgba(149,69,206,.28),transparent 42%),linear-gradient(135deg,#091222,#101b31 50%,#0a1625);background-size:180% 180%;animation:studytrackAurora 22s ease-in-out infinite alternate}
+body.light-theme[data-admin-background="aurora"]::before{background-image:radial-gradient(ellipse at 18% 22%,rgba(139,119,255,.20),transparent 38%),radial-gradient(ellipse at 80% 15%,rgba(39,183,189,.17),transparent 36%),radial-gradient(ellipse at 65% 84%,rgba(188,112,220,.16),transparent 42%),linear-gradient(135deg,#f2f5ff,#f6fbff 50%,#eff8fa);background-size:180% 180%;animation:studytrackAurora 22s ease-in-out infinite alternate}
+body[data-admin-background="custom"]::before{background-image:linear-gradient(135deg,rgba(7,13,25,.78),rgba(13,22,37,.70)),var(--studytrack-custom-background);background-position:center;background-size:cover;background-repeat:no-repeat;animation:none}
+body.light-theme[data-admin-background="custom"]::before{background-image:linear-gradient(135deg,rgba(242,246,255,.82),rgba(246,249,255,.76)),var(--studytrack-custom-background);background-position:center;background-size:cover;background-repeat:no-repeat;animation:none}
+@keyframes studytrackAurora{from{background-position:0% 30%}to{background-position:100% 70%}}
+@media(prefers-reduced-motion:reduce){body[data-admin-background="aurora"]::before,body.light-theme[data-admin-background="aurora"]::before{animation:none!important}}
+
+/* Language controls stay compact in the top bar and on the sign-in screen. */
+.language-control{display:inline-flex;align-items:center;gap:5px;min-height:31px;padding:0 8px;border:1px solid var(--line);border-radius:10px;background:rgba(148,163,184,.055);color:var(--muted)}
+.language-control-icon{font-size:14px;line-height:1;color:#a997ff}
+.language-switch{max-width:92px;border:0;outline:0;background:transparent;color:var(--text);font-size:10px;font-weight:650;cursor:pointer}
+.language-switch option{background:#142036;color:#f4f7fd}
+.auth-language-control{margin:0 0 13px;min-height:35px}
+.auth-language-control .language-switch{font-size:11px}
+@media(max-width:760px){.topbar-actions{gap:7px}.topbar-actions .local-indicator{max-width:36px;overflow:hidden;padding:6px}.topbar-actions .local-indicator span{display:none}.language-control{min-height:32px;padding:0 6px}.language-switch{max-width:67px;font-size:9px}.auth-language-control{margin-bottom:13px}}
+
+/* Profile editor uses a cover photo and overlapping round avatar like a social profile. */
+.facebook-profile-editor{overflow:hidden;border-color:rgba(148,163,184,.18);background:linear-gradient(145deg,rgba(20,32,52,.97),rgba(16,27,45,.98));box-shadow:0 14px 32px rgba(0,0,0,.13)}
+.facebook-profile-cover{height:198px;background:radial-gradient(ellipse at 78% 12%,rgba(196,181,253,.82),transparent 35%),radial-gradient(ellipse at 12% 93%,rgba(73,192,220,.66),transparent 45%),linear-gradient(120deg,#6257d6,#6e8de0 58%,#50a7bd)}
+.facebook-profile-cover span{display:flex;align-items:center;gap:7px;padding:8px 11px;margin:0 0 12px 15px;border:1px solid rgba(255,255,255,.2);border-radius:9px;background:rgba(7,13,25,.48);backdrop-filter:blur(10px);font-size:8px}
+.facebook-profile-cover span .studytrack-icon{width:14px;height:14px}
+.facebook-profile-bar{position:relative;display:flex;align-items:center;gap:14px;min-height:78px;padding:0 17px 10px;border-bottom:1px solid var(--line)}
+.facebook-profile-bar .profile-photo-preview{position:relative;z-index:2;width:94px;height:94px;margin-top:-46px;border:5px solid #142036;border-radius:50%;font-size:27px}
+.facebook-profile-meta{display:grid;gap:3px;min-width:0;flex:1}
+.facebook-profile-meta b{font-size:15px;letter-spacing:-.3px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.facebook-profile-meta small{font-size:9px;color:var(--muted)}
+.facebook-profile-bar .profile-photo-actions{justify-content:flex-end}
+.facebook-profile-bar .profile-photo-actions .btn{white-space:nowrap}
+.facebook-profile-editor .profile-cover-actions{padding:11px 16px 13px}
+.facebook-profile-editor .profile-cover-actions small{font-size:9px;line-height:1.5}
+.profile-cover-actions .studytrack-icon,.profile-photo-actions .studytrack-icon{width:13px;height:13px}
+.light-theme .facebook-profile-editor{background:linear-gradient(145deg,#fff,#f5f7ff);border-color:rgba(66,83,123,.13)}
+.light-theme .facebook-profile-bar .profile-photo-preview{border-color:#fff}
+@media(max-width:600px){.facebook-profile-cover{height:145px}.facebook-profile-bar{min-height:74px;gap:9px;padding:0 11px 10px;flex-wrap:wrap}.facebook-profile-bar .profile-photo-preview{width:74px;height:74px;margin-top:-34px;border-width:4px;font-size:23px}.facebook-profile-meta{min-width:calc(100% - 100px);padding-top:1px}.facebook-profile-meta b{font-size:13px}.facebook-profile-bar .profile-photo-actions{width:100%;justify-content:flex-start;margin-top:-1px}.facebook-profile-editor .profile-cover-actions{padding:10px 12px}.facebook-profile-editor .profile-cover-actions .btn{min-height:36px}}
+
+/* Clear, context-specific icons and mobile-friendly class join-code copying. */
+.empty-icon .studytrack-icon,.quiz-empty-icon .studytrack-icon{width:1.25em;height:1.25em}
+.quiz-empty-icon .studytrack-icon svg{stroke-width:1.85}
+.class-empty .empty-icon{width:40px;height:40px;margin:0 auto 9px;border-radius:13px;background:rgba(139,92,246,.14);color:#c4b2ff;display:grid;place-items:center}
+.class-empty .empty-icon .studytrack-icon{width:20px;height:20px}
+.admin-stat-orb .studytrack-icon{width:17px;height:17px}
+.admin-activity-mark .studytrack-icon{width:16px;height:16px}
+.admin-background-panel{margin-bottom:14px}
+.admin-appearance-panel{margin-bottom:14px}
+.admin-background-options{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.admin-background-option{position:relative;display:flex;align-items:center;gap:11px;min-width:0;min-height:68px;padding:11px 34px 11px 12px;border:1px solid var(--line-strong);border-radius:13px;background:rgba(148,163,184,.04);color:var(--text);text-align:left;cursor:pointer;transition:border-color .18s,background .18s,transform .18s}
+.admin-background-option:hover{transform:translateY(-1px);border-color:rgba(164,139,255,.48);background:rgba(139,92,246,.07)}
+.admin-background-option.selected{border-color:rgba(164,139,255,.58);background:linear-gradient(120deg,rgba(139,92,246,.15),rgba(59,130,246,.06));box-shadow:inset 0 0 0 1px rgba(164,139,255,.15)}
+.admin-background-option>.studytrack-icon{width:22px;height:22px;padding:4px;border-radius:8px;background:rgba(139,92,246,.15);color:#c4b2ff;flex:none}
+.admin-background-option>span:not(.studytrack-icon){display:grid;gap:3px;min-width:0}
+.admin-background-option b{font-size:10px}
+.admin-background-option small{font-size:8px;line-height:1.45;color:var(--muted)}
+.admin-background-option>i{position:absolute;right:12px;top:50%;display:grid;place-items:center;width:18px;height:18px;border:1px solid var(--line-strong);border-radius:50%;color:transparent;font-size:10px;font-style:normal;transform:translateY(-50%)}
+.admin-background-option.selected>i{border-color:var(--primary);background:var(--primary);color:white}
+.admin-background-upload{cursor:pointer}
+.admin-background-upload input{position:absolute;width:1px;height:1px;opacity:0;pointer-events:none}
+.admin-background-note{margin:11px 0 0;color:var(--muted);font-size:8px;line-height:1.5}
+.join-code-box .btn,.detail-code .btn{min-height:34px;white-space:nowrap}
+.copy-complete{border-color:rgba(55,211,154,.35)!important;color:var(--green)!important;background:rgba(55,211,154,.10)!important}
+@media(max-width:760px){.admin-background-options{grid-template-columns:1fr}.admin-background-option{min-height:58px}.join-code-box{flex-wrap:wrap}.join-code-box>span{width:100%}.join-code-box>b{flex:1;overflow-wrap:anywhere}.join-code-box .btn{margin-left:0}.facebook-profile-bar .profile-photo-actions .btn{min-height:35px}}
+.auth-screen{background:transparent}
+.auth-visual{background:linear-gradient(140deg,rgba(34,39,85,.54),rgba(24,91,113,.38)),transparent}
+.language-control-icon svg{display:block;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.profile-modal-avatar{border-radius:50%}
+@media(max-width:760px){.profile-modal-avatar{border-radius:50%}}
