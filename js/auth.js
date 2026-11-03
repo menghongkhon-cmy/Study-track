@@ -1,6 +1,6 @@
 const sessionState={user:null,csrf:"",active:false,suppressSync:false};
 const writeQueues=new Map();
-const serverSetupHelp="StudyTrack's account server is not handling requests. On Windows, open PowerShell in the StudyTrack folder, run `py server.py`, then open http://127.0.0.1:8000. Do not open index.html directly.";
+const serverSetupHelp="StudyTrack could not reach its account API. Start this project with `python server.py` (or set that as the Render start command) and open the same web service URL so the app and API share one origin.";
 globalThis.StudyTrackAuth=sessionState;
 
 export function currentUser(){return sessionState.user;}

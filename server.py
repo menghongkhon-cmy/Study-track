@@ -21,15 +21,6 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlsplit
-import os
-
-from flask import Flask
-
-app = Flask(__name__)
-
-host = os.getenv('HOST', '0.0.0.0')
-port = int(os.getenv('PORT', 8080))
-app.run(host=host, port=port)
 
 ROOT = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("STUDYTRACK_DB", str(ROOT / "studytrack.sqlite3"))).expanduser()
@@ -89,13 +80,14 @@ def init_db() -> None:
         );
         CREATE TABLE IF NOT EXISTS quizzes (
           id TEXT PRIMARY KEY, class_id TEXT NOT NULL REFERENCES classrooms(id) ON DELETE CASCADE,
-          title TEXT NOT NULL, instructions TEXT NOT NULL DEFAULT '', questions_json TEXT NOT NULL,
+          title TEXT NOT NULL, instructions TEXT NOT NULL DEFAULT '', due_date TEXT NOT NULL DEFAULT '', questions_json TEXT NOT NULL,
           created_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS quiz_attempts (
           id TEXT PRIMARY KEY, quiz_id TEXT NOT NULL REFERENCES quizzes(id) ON DELETE CASCADE,
           student_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
           correct_count INTEGER NOT NULL, question_count INTEGER NOT NULL, submitted_at TEXT NOT NULL,
+          answers_json TEXT NOT NULL DEFAULT '[]',
           UNIQUE(quiz_id,student_id)
         );
         CREATE TABLE IF NOT EXISTS submissions (
@@ -144,6 +136,12 @@ def init_db() -> None:
         submission_columns={row[1] for row in db.execute("PRAGMA table_info(submissions)").fetchall()}
         if "feedback" not in submission_columns:
             db.execute("ALTER TABLE submissions ADD COLUMN feedback TEXT NOT NULL DEFAULT ''")
+        quiz_columns={row[1] for row in db.execute("PRAGMA table_info(quizzes)").fetchall()}
+        if "due_date" not in quiz_columns:
+            db.execute("ALTER TABLE quizzes ADD COLUMN due_date TEXT NOT NULL DEFAULT ''")
+        attempt_columns={row[1] for row in db.execute("PRAGMA table_info(quiz_attempts)").fetchall()}
+        if "answers_json" not in attempt_columns:
+            db.execute("ALTER TABLE quiz_attempts ADD COLUMN answers_json TEXT NOT NULL DEFAULT '[]'")
         db.execute("DELETE FROM sessions WHERE expires_at < ?", (int(time.time()),))
 
 
@@ -910,6 +908,25 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                 for question in questions if isinstance(question, dict)
                 and isinstance(question.get("options"), list)]
 
+    @staticmethod
+    def _quiz_review(questions: list, answers: list) -> list:
+        review = []
+        for index, question in enumerate(questions):
+            if not isinstance(question, dict) or not isinstance(question.get("options"), list):
+                continue
+            correct_index = question.get("correctIndex")
+            selected_index = answers[index] if index < len(answers) else None
+            if isinstance(correct_index, bool) or not isinstance(correct_index, int):
+                continue
+            review.append({
+                "prompt": str(question.get("prompt", "")),
+                "options": question["options"],
+                "selected_index": selected_index,
+                "correct_index": correct_index,
+                "correct": selected_index == correct_index,
+            })
+        return review
+
     def get_class_quizzes(self, user: dict, class_id: str) -> None:
         with connect_db() as db:
             classroom = db.execute("SELECT teacher_id FROM classrooms WHERE id=?", (class_id,)).fetchone()
@@ -925,6 +942,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
             for row in rows:
                 questions = self._quiz_questions(row)
                 item = {"id": row["id"], "title": row["title"], "instructions": row["instructions"],
+                        "due_date": row["due_date"],
                         "created_at": row["created_at"], "question_count": len(questions),
                         "questions": self._public_quiz_questions(questions, teacher)}
                 if teacher:
@@ -947,12 +965,25 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                 self.send_error_json(HTTPStatus.FORBIDDEN, "Join this class to open its quizzes."); return
             questions = self._quiz_questions(quiz)
             result = {"id": quiz["id"], "class_id": quiz["class_id"], "title": quiz["title"],
+                      "due_date": quiz["due_date"],
                       "instructions": quiz["instructions"], "question_count": len(questions),
                       "questions": self._public_quiz_questions(questions, teacher)}
             if not teacher:
-                attempt = db.execute("""SELECT correct_count,question_count,submitted_at FROM quiz_attempts
+                attempt = db.execute("""SELECT correct_count,question_count,submitted_at,answers_json FROM quiz_attempts
                                          WHERE quiz_id=? AND student_id=?""", (quiz_id, user["id"])).fetchone()
-                result["attempt"] = dict(attempt) if attempt else None
+                if attempt:
+                    attempt_data = dict(attempt)
+                    try:
+                        submitted_answers = json.loads(attempt_data.pop("answers_json", "[]"))
+                    except (TypeError, json.JSONDecodeError):
+                        submitted_answers = []
+                    if not isinstance(submitted_answers, list):
+                        submitted_answers = []
+                    attempt_data["review"] = self._quiz_review(questions, submitted_answers) \
+                        if len(submitted_answers) == len(questions) else []
+                    result["attempt"] = attempt_data
+                else:
+                    result["attempt"] = None
         self.send_json({"quiz": result})
 
     def get_quiz_attempts(self, user: dict, quiz_id: str) -> None:
@@ -975,11 +1006,16 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         body = self.read_json()
         title = str(body.get("title", "")).strip()
         instructions = str(body.get("instructions", "")).strip()
+        due_date = str(body.get("due_date", "")).strip()
         raw_questions = body.get("questions")
         if not 2 <= len(title) <= 100:
             raise ValueError("Quiz title must be between 2 and 100 characters.")
         if len(instructions) > 2000:
             raise ValueError("Quiz instructions are too long.")
+        try:
+            date.fromisoformat(due_date)
+        except (TypeError, ValueError):
+            raise ValueError("Choose a valid quiz due date.")
         if not isinstance(raw_questions, list) or not 1 <= len(raw_questions) <= MAX_QUIZ_QUESTIONS:
             raise ValueError(f"Add between 1 and {MAX_QUIZ_QUESTIONS} questions.")
         questions = []
@@ -1003,8 +1039,8 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         with connect_db() as db:
             if not db.execute("SELECT 1 FROM classrooms WHERE id=? AND teacher_id=?", (class_id, user["id"])).fetchone():
                 self.send_error_json(HTTPStatus.FORBIDDEN, "You can only create quizzes in your own class."); return
-            db.execute("INSERT INTO quizzes(id,class_id,title,instructions,questions_json,created_at) VALUES(?,?,?,?,?,?)",
-                       (quiz_id, class_id, title, instructions,
+            db.execute("INSERT INTO quizzes(id,class_id,title,instructions,due_date,questions_json,created_at) VALUES(?,?,?,?,?,?,?)",
+                       (quiz_id, class_id, title, instructions, due_date,
                         json.dumps(questions, ensure_ascii=False, separators=(",", ":")), utc_now()))
             log_activity(db, user["id"], f"Published quiz: {title}")
         self.send_json({"ok": True, "quiz_id": quiz_id}, HTTPStatus.CREATED)
@@ -1024,24 +1060,31 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
             if not isinstance(answers, list) or len(answers) != len(questions):
                 raise ValueError("Answer every question before submitting.")
             correct_count = 0
+            review = []
             for index, (answer, question) in enumerate(zip(answers, questions), 1):
                 if isinstance(answer, bool) or not isinstance(answer, int) or not 0 <= answer < len(question["options"]):
                     raise ValueError(f"Choose an answer for question {index}.")
-                if answer == question["correctIndex"]:
+                correct = answer == question["correctIndex"]
+                if correct:
                     correct_count += 1
+                review.append({"prompt": question["prompt"], "options": question["options"],
+                               "selected_index": answer, "correct_index": question["correctIndex"],
+                               "correct": correct})
             existing = db.execute("SELECT 1 FROM quiz_attempts WHERE quiz_id=? AND student_id=?",
                                   (quiz_id, user["id"])).fetchone()
             if existing:
                 self.send_error_json(HTTPStatus.CONFLICT, "You have already submitted this quiz."); return
             try:
-                db.execute("""INSERT INTO quiz_attempts(id,quiz_id,student_id,correct_count,question_count,submitted_at)
-                              VALUES(?,?,?,?,?,?)""",
-                           (secrets.token_urlsafe(12), quiz_id, user["id"], correct_count, len(questions), utc_now()))
+                db.execute("""INSERT INTO quiz_attempts(id,quiz_id,student_id,correct_count,question_count,submitted_at,answers_json)
+                              VALUES(?,?,?,?,?,?,?)""",
+                           (secrets.token_urlsafe(12), quiz_id, user["id"], correct_count, len(questions), utc_now(),
+                            json.dumps(answers, separators=(",", ":"))))
                 log_activity(db, user["id"], f"Submitted quiz: {quiz['title']}")
             except sqlite3.IntegrityError:
                 self.send_error_json(HTTPStatus.CONFLICT, "You have already submitted this quiz."); return
         self.send_json({"ok": True, "correct_count": correct_count, "question_count": len(questions),
-                        "percentage": round(100 * correct_count / len(questions), 1) if questions else 0},
+                        "percentage": round(100 * correct_count / len(questions), 1) if questions else 0,
+                        "review": review},
                        HTTPStatus.CREATED)
 
     def lookup_person(self, user: dict, email: str) -> None:
@@ -1200,7 +1243,9 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
 
 def main() -> None:
     init_db()
-    host=os.environ.get("STUDYTRACK_HOST","127.0.0.1")
+    # Render always supplies PORT; bind publicly there unless the host is set explicitly.
+    # Keep local development private when no deployment port is present.
+    host=os.environ.get("STUDYTRACK_HOST") or ("0.0.0.0" if os.environ.get("PORT") else "127.0.0.1")
     port=int(os.environ.get("PORT",os.environ.get("STUDYTRACK_PORT","8000")))
     print(f"StudyTrack running at http://{host}:{port}")
     print("Keep this terminal open while using the app. Set STUDYTRACK_TEACHER_CODE to allow teacher registration.")

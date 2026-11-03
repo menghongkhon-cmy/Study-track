@@ -340,6 +340,79 @@ body.light-theme{--bg:#f4f7ff;--sidebar:#fff;--card:#fff;--card-2:#fff;--text:#1
 @media(max-width:760px){.note-modal .modal-body{padding:13px 13px 0}.note-modal .modal-actions{margin:14px -13px 0;padding:12px 13px}.note-document-editor{min-height:280px;padding:25px 19px;font-size:13px}.note-editor-toolbar{gap:3px;padding:7px}.note-editor-toolbar button{padding:0 7px;font-size:10px}.quiz-grid{grid-template-columns:1fr}.quiz-card{min-height:175px}.quiz-options-grid,.quiz-answer-options{grid-template-columns:1fr}.quiz-result-row{grid-template-columns:23px minmax(70px,1fr) 42px}.quiz-result-row>span:nth-of-type(2){grid-column:2}.quiz-result-row strong{grid-column:3;grid-row:1}.quiz-result-row small{grid-column:2/-1}.quiz-builder-heading{align-items:flex-start;flex-direction:column}}
 @media(prefers-reduced-motion:reduce){.quiz-card,.quiz-question-editor,.quiz-attempt-question,.quiz-finish-card,.quiz-finish-spark,.note-editor-shell{animation:none!important;transition:none!important}}
 
+/* Shared class deadlines in the planner calendar. */
+.calendar-day{min-height:82px;padding:7px;align-items:flex-start;border-radius:10px}
+.calendar-day.has-task:after{display:none}
+.calendar-day-number{font-size:10px;font-weight:700;line-height:1.25}
+.calendar-day-events{display:grid;gap:3px;width:100%;min-width:0;margin-top:5px}
+.calendar-event-chip{display:block;max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;padding:2px 4px;border-radius:5px;background:rgba(139,92,246,.14);color:#c7b7ff;font-size:7px;line-height:1.35}
+.calendar-event-chip i{display:inline-block;width:4px;height:4px;margin:0 4px 1px 0;border-radius:50%;background:currentColor}
+.calendar-event-chip.assignment{background:rgba(59,130,246,.13);color:#82baff}
+.calendar-event-chip.quiz{background:rgba(245,158,11,.13);color:#ffd17a}
+.calendar-event-chip.study{background:rgba(16,185,129,.11);color:#65ddb2}
+.calendar-more{font-size:7px;color:var(--muted);padding-left:3px}
+.calendar-legend{flex-wrap:wrap;row-gap:6px}
+.calendar-class-event{display:flex;align-items:center;gap:9px;padding:10px 2px;border-bottom:1px solid var(--line)}
+.calendar-class-event:last-child{border-bottom:0}
+.calendar-class-event-icon{width:29px;height:29px;display:grid;place-items:center;flex:none;border-radius:9px;background:rgba(59,130,246,.13);color:#82baff;font-size:12px}
+.calendar-class-event.quiz .calendar-class-event-icon{background:rgba(245,158,11,.12);color:#ffd17a}
+.calendar-class-event-copy{display:grid;gap:2px;min-width:0;flex:1}
+.calendar-class-event-copy b{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text);font-size:9px}
+.calendar-class-event-copy small{color:var(--muted);font-size:8px;line-height:1.4}
+.calendar-class-event .text-action{white-space:nowrap}
+.day-plan-items{display:grid;gap:3px}
+
+/* Make class work match the dark workspace and emphasize review progress. */
+.assignment-card{background:linear-gradient(145deg,rgba(24,38,61,.96),rgba(17,29,47,.98));border-color:var(--line-strong);box-shadow:0 10px 26px rgba(0,0,0,.09)}
+.assignment-card h3{color:var(--text)}
+.assignment-card>p{color:var(--muted)}
+.assignment-score-meta,.submission-summary{border-color:var(--line);color:var(--muted)}
+.assignment-score-meta b{color:#d8e2f1}
+.submission-list{border-color:var(--line)}
+.submission-row{border-bottom:1px solid rgba(148,163,184,.08)}
+.submission-row:last-child{border-bottom:0}
+.member-name b{color:#e7edf7}
+.member-name small{color:var(--muted)}
+.submission-score.graded{color:var(--green)}
+.submission-score.awaiting{color:var(--yellow)}
+.submission-grade-track,.student-grade-track{display:block;width:100%;height:4px;overflow:hidden;border-radius:9px;background:rgba(148,163,184,.13)}
+.submission-grade-track i,.student-grade-track i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--primary),var(--green));transition:width .4s ease}
+.student-submission-status.graded{background:rgba(139,92,246,.13);color:#d0c2ff}
+.student-grade-card{display:grid;grid-template-columns:1fr auto;gap:7px;align-items:center;margin:0 0 11px;padding:11px;border:1px solid rgba(55,211,154,.18);border-radius:10px;background:linear-gradient(120deg,rgba(16,185,129,.09),rgba(139,92,246,.07))}
+.student-grade-card>div:first-child{display:grid;gap:2px}
+.student-grade-card span{color:var(--muted);font-size:8px}
+.student-grade-card b{font-size:18px;line-height:1.2;color:var(--text)}
+.student-grade-card b small{font-size:9px;color:var(--muted);font-weight:500}
+.student-grade-card>strong{font-size:14px;color:var(--green)}
+.student-grade-track{grid-column:1/-1}
+.teacher-feedback,.submission-own-note{border:1px solid var(--line);background:rgba(148,163,184,.045);color:var(--muted)}
+.teacher-feedback b,.submission-own-note b{color:var(--text)}
+.teacher-feedback p,.submission-own-note p{color:var(--muted)}
+.quiz-due{display:inline-flex;align-items:center;gap:5px;margin:0 0 8px;padding:4px 7px;border-radius:7px;background:rgba(59,130,246,.1);color:#8ebeff;font-size:8px}
+.quiz-complete .quiz-due{background:rgba(16,185,129,.1);color:#6ce0b5}
+.quiz-review-list{display:grid;gap:8px;margin-top:12px}
+.quiz-review-item{padding:11px 12px;border:1px solid var(--line);border-radius:11px;background:rgba(148,163,184,.035)}
+.quiz-review-item.is-correct{border-color:rgba(55,211,154,.2)}
+.quiz-review-item.is-wrong{border-color:rgba(255,113,129,.22)}
+.quiz-review-head{display:flex;justify-content:space-between;gap:8px;color:var(--muted);font-size:8px}
+.quiz-review-item.is-correct .quiz-review-head b{color:var(--green)}
+.quiz-review-item.is-wrong .quiz-review-head b{color:#ff9ca4}
+.quiz-review-item>p{margin:7px 0;color:var(--text);font-size:9px;font-weight:650}
+.quiz-review-answer,.quiz-review-correct{display:grid;gap:2px;margin-top:6px;padding:7px 8px;border-radius:7px;background:rgba(148,163,184,.06)}
+.quiz-review-answer small,.quiz-review-correct small{color:var(--muted);font-size:7px}
+.quiz-review-answer strong,.quiz-review-correct strong{color:var(--text);font-size:8px}
+.quiz-review-correct{background:rgba(16,185,129,.09)}
+.quiz-review-correct strong{color:#70dfb7}
+.light-theme .assignment-card{background:linear-gradient(145deg,#fff,#fafbff);border-color:rgba(66,83,111,.13);box-shadow:0 9px 24px rgba(48,66,99,.05)}
+.light-theme .assignment-card h3,.light-theme .member-name b,.light-theme .student-grade-card b,.light-theme .calendar-class-event-copy b{color:#24314c}
+.light-theme .assignment-card>p,.light-theme .member-name small{color:#758199}
+.light-theme .assignment-score-meta,.light-theme .submission-summary{border-color:#edf0f6;color:#8490a5}
+.light-theme .assignment-score-meta b{color:#43516c}
+.light-theme .teacher-feedback,.light-theme .submission-own-note{background:#f8f9fd;color:#758199}
+.light-theme .teacher-feedback b,.light-theme .submission-own-note b{color:#26324b}
+.light-theme .calendar-class-event-copy small{color:#758199}
+@media(max-width:760px){.calendar-day{min-height:64px;padding:5px}.calendar-day-number{font-size:9px}.calendar-event-chip{font-size:6px;padding:2px 3px}.calendar-class-event{align-items:flex-start}.calendar-class-event .text-action{padding:4px 2px;font-size:8px}.submission-row{align-items:flex-start;flex-wrap:wrap}.submission-row .member-name{flex-basis:calc(100% - 44px)}.submission-grade{margin-left:auto}}
+
 /* Profile discovery, private email chat, and owner-only administration. */
 .auth-role-picker{grid-template-columns:repeat(3,minmax(0,1fr))}
 .chat-contact{display:flex;align-items:center;gap:4px;padding:4px;border:1px solid transparent;border-radius:11px;background:transparent;cursor:default}
