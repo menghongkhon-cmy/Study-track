@@ -525,3 +525,26 @@ body.light-theme{--bg:#f4f7ff;--sidebar:#fff;--card:#fff;--card-2:#fff;--text:#1
 @media(max-width:980px){.admin-stats-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.messages-layout{grid-template-columns:minmax(205px,.7fr) minmax(0,1.3fr)}}
 @media(max-width:760px){.auth-role-picker button{gap:4px;padding:0 4px;font-size:9px}.messages-layout{grid-template-columns:minmax(0,1fr)}.direct-thread-panel{min-height:180px}.direct-thread-panel .direct-thread-list{grid-template-columns:repeat(2,minmax(0,1fr))}.direct-conversation-panel{min-height:360px}.direct-message-feed{min-height:200px;max-height:330px}.people-search-row{align-items:stretch}.people-search-row .btn{padding:8px 10px}.admin-stats-grid{gap:8px}.admin-stat-card{min-height:96px;padding:11px}.admin-table-wrap{margin:0 -3px;width:calc(100% + 6px)}.admin-toolbar{align-items:flex-start;flex-direction:column}.admin-toolbar .search-field{width:100%;max-width:none}.admin-activity-row{grid-template-columns:28px minmax(0,1fr)}.admin-activity-row time{grid-column:2}.chat-contact{padding:3px}.chat-contact-profile{padding:5px 6px}.chat-contact-open{gap:6px;padding:4px}.chat-contact-copy b{font-size:9px}}
 @media(prefers-reduced-motion:reduce){.people-search-panel,.people-search-result,.admin-stat-card,.admin-activity-row,.direct-thread-panel,.direct-conversation-panel,.chat-contact-profile{animation:none!important;transition:none!important}}
+
+.pwa-install-button{position:fixed;right:max(18px,env(safe-area-inset-right));bottom:max(18px,env(safe-area-inset-bottom));z-index:80;display:inline-flex;align-items:center;gap:9px;min-height:43px;padding:0 16px;border:1px solid rgba(255,255,255,.2);border-radius:999px;background:linear-gradient(130deg,#a282ff,#7859ed);box-shadow:0 10px 28px rgba(73,48,166,.32);color:#fff;font:650 12px/1.2 Inter,ui-sans-serif,system-ui,sans-serif;cursor:pointer;animation:pwaInstallIn .36s cubic-bezier(.2,.8,.2,1) both;transition:transform .2s,box-shadow .2s,opacity .2s}
+.pwa-install-button:hover{transform:translateY(-2px);box-shadow:0 14px 34px rgba(73,48,166,.42)}
+.pwa-install-button:focus-visible,.pwa-help-close:focus-visible,.pwa-help-done:focus-visible{outline:3px solid rgba(194,174,255,.8);outline-offset:3px}
+.pwa-install-button svg{width:17px;height:17px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.pwa-install-button[hidden]{display:none}
+@keyframes pwaInstallIn{from{opacity:0;transform:translateY(9px) scale(.96)}to{opacity:1;transform:translateY(0) scale(1)}}
+.pwa-help-dialog{position:fixed;inset:0;margin:auto;width:min(430px,calc(100% - 28px));max-width:none;max-height:min(90dvh,620px);overflow:auto;padding:27px;border:1px solid var(--line-strong);border-radius:22px;background:linear-gradient(145deg,#17243a,#101a2c);color:var(--text);box-shadow:0 28px 90px rgba(0,0,0,.42)}
+.pwa-help-dialog::backdrop{background:rgba(4,8,17,.68);backdrop-filter:blur(8px)}
+.pwa-help-mark{width:39px;height:39px;display:grid;place-items:center;margin-bottom:18px;border-radius:13px;background:rgba(153,121,255,.16);color:#c7b6ff;font-size:20px}
+.pwa-help-close{position:absolute;right:16px;top:15px;width:32px;height:32px;border:1px solid var(--line);border-radius:10px;background:rgba(148,163,184,.06);color:var(--muted);font-size:21px;cursor:pointer}
+.pwa-help-dialog .eyebrow{margin-bottom:7px}
+.pwa-help-dialog h2{margin:0;font-size:22px;letter-spacing:-.55px}
+.pwa-help-intro{margin:8px 0 19px;color:var(--muted);font-size:12px;line-height:1.65}
+.pwa-install-steps{display:grid;gap:10px;margin:0;padding:0;list-style:none;counter-reset:install-step}
+.pwa-install-steps li{position:relative;min-height:43px;padding:11px 12px 11px 43px;border:1px solid var(--line);border-radius:12px;background:rgba(148,163,184,.045);color:#dce4f1;font-size:11px;line-height:1.5;counter-increment:install-step}
+.pwa-install-steps li::before{content:counter(install-step);position:absolute;left:12px;top:10px;width:20px;height:20px;display:grid;place-items:center;border-radius:7px;background:rgba(153,121,255,.16);color:#c8b8ff;font-size:10px;font-weight:750}
+.pwa-help-note{margin:16px 0;color:var(--faint);font-size:9px;line-height:1.55}
+.pwa-help-done{width:100%;min-height:40px}
+.light-theme .pwa-help-dialog{background:linear-gradient(145deg,#fff,#f5f6ff)}
+.light-theme .pwa-install-steps li{background:#f8f9fe;color:#33415b}
+@media(max-width:760px){.pwa-install-button{right:max(12px,env(safe-area-inset-right));bottom:max(12px,env(safe-area-inset-bottom));min-height:44px;padding:0 14px;font-size:11px}.pwa-help-dialog{padding:23px 19px}}
+@media(prefers-reduced-motion:reduce){.pwa-install-button{animation:none!important;transition:none!important}}
