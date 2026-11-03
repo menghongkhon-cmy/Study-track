@@ -50,22 +50,31 @@ Students do not need that code. There is currently no email verification or pass
 
 Google and GitHub can create a student account on first use or sign in to a matching account using the provider's verified email. Existing teacher or admin roles remain unchanged when the verified email matches. New provider sign-ups receive the Student role; social sign-in never grants teacher or admin access by itself. Telegram does not provide an email address, so first sign in with an existing StudyTrack method, then connect Telegram from **Settings & privacy → Connected sign-in methods**. After linking, Telegram can be used on the login screen.
 
-Register OAuth credentials with each provider and use these exact callback URLs, replacing the example domain with the public StudyTrack origin:
+The Google and GitHub buttons only work after you create OAuth credentials for StudyTrack and add them to the hosted server. For the current Render address shown for this project, use these callback URLs (if your service URL changed, replace the domain with its current primary URL):
 
 ```text
-https://your-studytrack-domain/auth/google/callback
-https://your-studytrack-domain/auth/github/callback
-https://your-studytrack-domain/auth/telegram/callback
+https://study-track-7.onrender.com/auth/google/callback
+https://study-track-7.onrender.com/auth/github/callback
 ```
 
-For Telegram, also add the site's origin and callback URL to the bot's allowed URLs in @BotFather. Then add these values to the server's environment (for Render, use the service's **Environment** page):
+1. In [Google Cloud Console](https://console.cloud.google.com/), create an OAuth client with application type **Web application**. Add the Google callback URL above under **Authorized redirect URIs** and copy its client ID and client secret.
+2. In GitHub, open **Settings → Developer settings → OAuth Apps → New OAuth App**. Set the homepage to `https://study-track-7.onrender.com`, add the GitHub callback URL above as the **Authorization callback URL**, then copy the client ID and generate a client secret.
+3. In Render, open the StudyTrack service's **Environment** page and add the variables below. Set `STUDYTRACK_PUBLIC_URL` to the exact public site origin, without a trailing slash. Keep the client secrets private.
+4. Save the variables and redeploy/restart the service, then try the buttons again. GitHub users need a verified primary email address on their GitHub account.
 
 ```text
-STUDYTRACK_PUBLIC_URL=https://your-studytrack-domain
-STUDYTRACK_GOOGLE_CLIENT_ID=...
+STUDYTRACK_PUBLIC_URL=https://study-track-7.onrender.com
+STUDYTRACK_GOOGLE_CLIENT_ID=...apps.googleusercontent.com
 STUDYTRACK_GOOGLE_CLIENT_SECRET=...
 STUDYTRACK_GITHUB_CLIENT_ID=...
 STUDYTRACK_GITHUB_CLIENT_SECRET=...
+```
+
+For local testing, register `http://127.0.0.1:8000/auth/google/callback` and `http://127.0.0.1:8000/auth/github/callback`, then set the corresponding variables in the same terminal before starting `python3 server.py`.
+
+Telegram is optional. For it, add `https://study-track-7.onrender.com` and `https://study-track-7.onrender.com/auth/telegram/callback` to the bot's allowed URLs in @BotFather, then add these values to the Render service's **Environment** page:
+
+```text
 STUDYTRACK_TELEGRAM_CLIENT_ID=...
 STUDYTRACK_TELEGRAM_CLIENT_SECRET=...
 ```
