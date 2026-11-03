@@ -690,3 +690,33 @@ body.light-theme[data-admin-background="custom"]::before{background-image:linear
 .language-control-icon svg{display:block;width:14px;height:14px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .profile-modal-avatar{border-radius:50%}
 @media(max-width:760px){.profile-modal-avatar{border-radius:50%}}
+
+
+/* Clear account header, accessible language control, and consistent SVG affordances. */
+.auth-head-row{display:flex;align-items:flex-start;justify-content:space-between;gap:14px;margin-bottom:18px}
+.auth-head-row .auth-welcome{flex:1;min-width:0;margin:0}
+.auth-head-row .auth-welcome p{margin-bottom:0}
+.auth-language-control{flex:0 0 auto;display:inline-flex;align-items:center;gap:8px;min-height:40px;margin:0;padding:0 10px;border:1px solid rgba(105,83,210,.2);border-radius:12px;background:#f5f3ff;color:#5343a5;box-shadow:0 5px 14px rgba(86,67,163,.06);transition:background .2s,border-color .2s,box-shadow .2s,transform .2s}
+.auth-language-control:hover{background:#efebff;border-color:rgba(105,83,210,.38);transform:translateY(-1px)}
+.auth-language-control:focus-within{border-color:#8d76f2;box-shadow:0 0 0 3px rgba(126,99,235,.16)}
+.auth-language-control .language-control-icon{display:flex;color:#725de0}
+.auth-language-control .language-control-icon svg{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.auth-language-control .language-switch{width:66px;max-width:none;appearance:none;padding:0;color:#43358f;font-size:11px;font-weight:700;line-height:1.2}
+.auth-language-control .language-switch option{color:#1d2944;background:#fff}
+.language-chevron{display:flex;width:12px;height:12px;color:#6d5bc1;pointer-events:none}
+.language-chevron svg{display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.auth-role-picker{grid-template-columns:repeat(3,minmax(0,1fr));margin-bottom:18px}
+.auth-role-picker .studytrack-icon{width:15px;height:15px}
+.auth-role-picker button{gap:8px;min-width:0}
+.auth-role-picker button .studytrack-icon svg{stroke-width:1.9}
+.stat-card,.subject-card,.note-card,.achievement-card{transition:transform .22s,border-color .22s,box-shadow .22s}
+.auth-role-picker .studytrack-icon,.btn .studytrack-icon,.icon-btn .studytrack-icon,.nav-item .studytrack-icon{transition:transform .24s cubic-bezier(.2,.8,.2,1),filter .24s}
+.auth-role-picker button:hover .studytrack-icon,.btn:hover .studytrack-icon,.icon-btn:hover .studytrack-icon,.nav-item:hover .studytrack-icon{transform:translateY(-1px) scale(1.06);filter:drop-shadow(0 2px 3px rgba(116,90,220,.2))}
+.auth-role-picker button.active .studytrack-icon{animation:roleIconIn .32s cubic-bezier(.2,.8,.2,1) both}
+.stat-card:hover,.subject-card:hover,.note-card:hover,.achievement-card:hover{transform:translateY(-2px);border-color:rgba(164,139,255,.25);box-shadow:0 14px 34px rgba(0,0,0,.12)}
+.auth-head-row,.auth-language-control{animation:authItemIn .48s .04s both}
+.studytrack-icon{filter:drop-shadow(0 1px 1px rgba(20,30,50,.04))}
+.studytrack-icon svg{overflow:visible}
+@keyframes roleIconIn{from{opacity:.5;transform:scale(.78) rotate(-8deg)}to{opacity:1;transform:scale(1) rotate(0)}}
+@media(max-width:520px){.auth-form-panel{padding:26px 18px}.auth-head-row{gap:8px;align-items:flex-start}.auth-head-row .auth-welcome h2{font-size:22px;letter-spacing:-.7px}.auth-head-row .auth-welcome p{max-width:220px}.auth-language-control{min-height:36px;gap:5px;padding:0 7px;border-radius:10px}.auth-language-control .language-switch{width:58px;font-size:10px}.auth-language-control .language-control-icon svg{width:14px;height:14px}.language-chevron{width:10px;height:10px}.auth-role-picker{gap:3px;padding:4px}.auth-role-picker button{gap:5px;min-height:40px;font-size:9px}.auth-role-picker .studytrack-icon{width:13px;height:13px}}
+@media(max-width:360px){.auth-head-row{display:grid;grid-template-columns:minmax(0,1fr) auto}.auth-head-row .auth-welcome h2{font-size:20px}.auth-role-picker button{font-size:8px;gap:4px}}

@@ -98,6 +98,12 @@ The included `render.yaml` configures a Python web service in Singapore, HTTPS c
 3. When Render asks for `STUDYTRACK_TEACHER_CODE` and `STUDYTRACK_ADMIN_CODE`, set separate strong private codes. Share the teacher code only with trusted teachers and keep the admin code for the app owner. Students can create accounts without either code.
 4. After the deploy completes, open the public `onrender.com` address shown in the Render dashboard and create an account.
 
+## Prepare an AWS EC2 deployment
+
+The project includes an Ubuntu EC2 deployment guide and starter files under [`deploy/aws/`](deploy/aws/README.md): a systemd service, an Nginx reverse-proxy configuration, and an environment-variable example. The guide keeps the app bound to localhost, enables secure cookies, and stores SQLite data under `/var/lib/studytrack` so that directory can be mounted on persistent EBS storage. Follow the guide and verify the database volume's delete-on-termination setting before creating real accounts.
+
+This is a single-instance setup for testing and small deployments. It does not add failover or a managed database. The current app server is Python's built-in HTTP server behind Nginx; arrange a security review before using it for sensitive student records at scale.
+
 The app stores account data and submissions in the server's SQLite database so users can sign in and share classroom work. The person who owns the hosting account can access the server and its database. Use the account's JSON export for backups; keep a separate copy somewhere safe.
 
 ## Features
