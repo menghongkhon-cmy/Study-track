@@ -1,2 +1,2 @@
-# StudyTrack uses only the Python standard library.
-# Keep this file for hosts configured to run: pip install -r requirements.txt
+# PyJWT validates OpenID Connect ID tokens for Google and Telegram sign-in.
+PyJWT[crypto]>=2.10,<3

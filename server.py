@@ -1,18 +1,21 @@
 #!/usr/bin/env python3
-"""StudyTrack's small, same-origin API server (Python standard library only)."""
+"""StudyTrack's same-origin API, local SQLite account store, and OAuth sign-in."""
 from __future__ import annotations
 
 import hashlib
 import hmac
+import ipaddress
 import json
 import math
 import mimetypes
 import binascii
 from base64 import b64decode
+from base64 import urlsafe_b64encode
 import os
 import re
 import secrets
 import sqlite3
+import threading
 import time
 import traceback
 from datetime import date, datetime, timedelta, timezone
@@ -20,7 +23,12 @@ from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, quote, unquote, urlsplit
+from urllib.parse import parse_qs, quote, unquote, urlencode, urlsplit
+from urllib.error import HTTPError, URLError
+from urllib.request import Request, urlopen
+
+import jwt
+from jwt import PyJWKClient
 
 ROOT = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("STUDYTRACK_DB", str(ROOT / "studytrack.sqlite3"))).expanduser()
@@ -32,8 +40,35 @@ MAX_SUBMISSION_FILE = 8 * 1024 * 1024
 MAX_SUBMISSION_TOTAL = 12 * 1024 * 1024
 MAX_SUBMISSION_FILES = 20
 MAX_QUIZ_QUESTIONS = 100
+CLASS_JOIN_ALPHABET = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789"
 DATA_KEYS = {"profile", "subjects", "scores", "tasks", "sessions", "notes", "goals", "achievements", "settings"}
 AUTH_ATTEMPTS: dict[str, list[float]] = {}
+AUTH_LOCK = threading.Lock()
+AUTH_ATTEMPT_WINDOW = 300
+AUTH_ATTEMPT_LIMIT = 12
+AUTH_ATTEMPT_KEYS_LIMIT = 4096
+PUBLIC_STATIC_FILES = {"index.html", "manifest.json", "sw.js"}
+PUBLIC_STATIC_DIRS = {"assets", "css", "js"}
+OAUTH_PROVIDERS = {
+    "google": {
+        "client_id_env": "STUDYTRACK_GOOGLE_CLIENT_ID",
+        "client_secret_env": "STUDYTRACK_GOOGLE_CLIENT_SECRET",
+        "authorize_url": "https://accounts.google.com/o/oauth2/v2/auth",
+        "token_url": "https://oauth2.googleapis.com/token",
+    },
+    "github": {
+        "client_id_env": "STUDYTRACK_GITHUB_CLIENT_ID",
+        "client_secret_env": "STUDYTRACK_GITHUB_CLIENT_SECRET",
+        "authorize_url": "https://github.com/login/oauth/authorize",
+        "token_url": "https://github.com/login/oauth/access_token",
+    },
+    "telegram": {
+        "client_id_env": "STUDYTRACK_TELEGRAM_CLIENT_ID",
+        "client_secret_env": "STUDYTRACK_TELEGRAM_CLIENT_SECRET",
+        "authorize_url": "https://oauth.telegram.org/auth",
+        "token_url": "https://oauth.telegram.org/token",
+    },
+}
 
 
 def connect_db() -> sqlite3.Connection:
@@ -58,6 +93,17 @@ def init_db() -> None:
         CREATE TABLE IF NOT EXISTS sessions (
           token_hash TEXT PRIMARY KEY, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
           csrf_token TEXT NOT NULL, expires_at INTEGER NOT NULL
+        );
+        CREATE TABLE IF NOT EXISTS oauth_accounts (
+          provider TEXT NOT NULL CHECK(provider IN ('google','github','telegram')),
+          subject TEXT NOT NULL, user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          created_at TEXT NOT NULL, PRIMARY KEY(provider,subject), UNIQUE(provider,user_id)
+        );
+        CREATE TABLE IF NOT EXISTS oauth_states (
+          state_hash TEXT PRIMARY KEY, provider TEXT NOT NULL CHECK(provider IN ('google','github','telegram')),
+          code_verifier TEXT NOT NULL, nonce TEXT NOT NULL,
+          link_user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
+          expires_at INTEGER NOT NULL, created_at TEXT NOT NULL
         );
         CREATE TABLE IF NOT EXISTS user_data (
           user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -119,6 +165,7 @@ def init_db() -> None:
           action TEXT NOT NULL, created_at TEXT NOT NULL
         );
         CREATE INDEX IF NOT EXISTS idx_sessions_user_expiry ON sessions(user_id,expires_at);
+        CREATE INDEX IF NOT EXISTS idx_oauth_states_expiry ON oauth_states(expires_at);
         CREATE INDEX IF NOT EXISTS idx_memberships_user ON class_memberships(user_id);
         CREATE INDEX IF NOT EXISTS idx_assignments_class ON assignments(class_id,due_date);
         CREATE INDEX IF NOT EXISTS idx_quizzes_class ON quizzes(class_id,created_at);
@@ -143,6 +190,7 @@ def init_db() -> None:
         if "answers_json" not in attempt_columns:
             db.execute("ALTER TABLE quiz_attempts ADD COLUMN answers_json TEXT NOT NULL DEFAULT '[]'")
         db.execute("DELETE FROM sessions WHERE expires_at < ?", (int(time.time()),))
+        db.execute("DELETE FROM oauth_states WHERE expires_at < ?", (int(time.time()),))
 
 
 def utc_now() -> str:
@@ -153,15 +201,35 @@ def password_digest(password: str, salt: bytes) -> bytes:
     return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PBKDF2_ROUNDS, dklen=32)
 
 
-def rate_limited(ip: str) -> bool:
-    now = time.time()
-    attempts = [stamp for stamp in AUTH_ATTEMPTS.get(ip, []) if stamp > now - 300]
-    AUTH_ATTEMPTS[ip] = attempts
-    return len(attempts) >= 12
+def secure_cookies_enabled() -> bool:
+    configured = os.environ.get("STUDYTRACK_SECURE_COOKIE")
+    if configured is not None:
+        return configured == "1"
+    # Render and similar hosting platforms provide PORT for the HTTPS service.
+    # Keep local http://127.0.0.1 development working when PORT is absent.
+    return bool(os.environ.get("PORT"))
 
 
-def record_failed_auth(ip: str) -> None:
-    AUTH_ATTEMPTS.setdefault(ip, []).append(time.time())
+def rate_limited(ip: str, limit: int = AUTH_ATTEMPT_LIMIT, window: int = AUTH_ATTEMPT_WINDOW) -> bool:
+    now = time.monotonic()
+    with AUTH_LOCK:
+        attempts = [stamp for stamp in AUTH_ATTEMPTS.get(ip, []) if stamp > now - window]
+        if attempts:
+            AUTH_ATTEMPTS[ip] = attempts
+        else:
+            AUTH_ATTEMPTS.pop(ip, None)
+        return len(attempts) >= limit
+
+
+def record_failed_auth(ip: str, window: int = AUTH_ATTEMPT_WINDOW) -> None:
+    now = time.monotonic()
+    with AUTH_LOCK:
+        if ip not in AUTH_ATTEMPTS and len(AUTH_ATTEMPTS) >= AUTH_ATTEMPT_KEYS_LIMIT:
+            oldest_key = next(iter(AUTH_ATTEMPTS))
+            AUTH_ATTEMPTS.pop(oldest_key, None)
+        attempts = [stamp for stamp in AUTH_ATTEMPTS.get(ip, []) if stamp > now - window]
+        attempts.append(now)
+        AUTH_ATTEMPTS[ip] = attempts
 
 
 def log_activity(db: sqlite3.Connection, actor_id: str | None, action: str, target_id: str | None = None) -> None:
@@ -172,12 +240,33 @@ def log_activity(db: sqlite3.Connection, actor_id: str | None, action: str, targ
 
 
 class StudyTrackHandler(BaseHTTPRequestHandler):
-    server_version = "StudyTrack/1.0"
+    server_version = "StudyTrack"
     sys_version = ""
+
+    def end_headers(self) -> None:
+        self.send_header("X-Content-Type-Options", "nosniff")
+        self.send_header("X-Frame-Options", "DENY")
+        self.send_header("Referrer-Policy", "no-referrer")
+        self.send_header("Permissions-Policy", "camera=(), microphone=(), geolocation=()")
+        self.send_header("Cross-Origin-Resource-Policy", "same-origin")
+        if secure_cookies_enabled():
+            self.send_header("Strict-Transport-Security", "max-age=31536000; includeSubDomains")
+        super().end_headers()
 
     def log_message(self, fmt: str, *args: object) -> None:
         if os.environ.get("STUDYTRACK_ACCESS_LOG", "0") == "1":
             super().log_message(fmt, *args)
+
+    def client_ip(self) -> str:
+        # Render's edge overwrites CF-Connecting-IP with the public client IP.
+        # Do not trust generic X-Forwarded-For values supplied by callers.
+        if os.environ.get("PORT"):
+            forwarded_ip = self.headers.get("CF-Connecting-IP", "").strip()
+            try:
+                return ipaddress.ip_address(forwarded_ip).compressed
+            except ValueError:
+                pass
+        return self.client_address[0]
 
     def send_json(self, payload: object, status: int = 200, cookie: str | None = None) -> None:
         body = json.dumps(payload, ensure_ascii=False, separators=(",", ":")).encode("utf-8")
@@ -185,8 +274,6 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         self.send_header("Content-Type", "application/json; charset=utf-8")
         self.send_header("Content-Length", str(len(body)))
         self.send_header("Cache-Control", "no-store")
-        self.send_header("X-Content-Type-Options", "nosniff")
-        self.send_header("Referrer-Policy", "no-referrer")
         if cookie:
             self.send_header("Set-Cookie", cookie)
         self.end_headers()
@@ -196,6 +283,9 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         self.send_json({"error": message}, status)
 
     def read_json(self) -> dict:
+        content_type = self.headers.get("Content-Type", "").split(";", 1)[0].strip().lower()
+        if content_type != "application/json":
+            raise ValueError("Send the request as application/json.")
         try:
             length = int(self.headers.get("Content-Length", "0"))
         except ValueError:
@@ -214,11 +304,15 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
     def check_origin(self) -> bool:
         origin = self.headers.get("Origin")
         if not origin:
-            return True
+            return False
         try:
-            origin_host = urlsplit(origin).netloc.lower()
+            parsed = urlsplit(origin)
             request_host = self.headers.get("Host", "").lower()
-            return bool(origin_host and origin_host == request_host)
+            if (parsed.scheme not in {"http", "https"} or not parsed.netloc
+                    or parsed.path or parsed.query or parsed.fragment
+                    or parsed.netloc.lower() != request_host):
+                return False
+            return not secure_cookies_enabled() or parsed.scheme == "https"
         except ValueError:
             return False
 
@@ -256,7 +350,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         return user
 
     def set_session_cookie(self, token: str) -> str:
-        secure = os.environ.get("STUDYTRACK_SECURE_COOKIE", "0") == "1"
+        secure = secure_cookies_enabled()
         parts = [f"{COOKIE_NAME}={token}", "Path=/", "HttpOnly", "SameSite=Lax", f"Max-Age={SESSION_SECONDS}"]
         if secure:
             parts.append("Secure")
@@ -275,13 +369,318 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         return {"id": row["id"], "email": row["email"], "name": row["name"],
                 "role": "admin" if is_admin else row["role"], "is_admin": is_admin}
 
+    def request_cookie(self, name: str) -> str:
+        jar = SimpleCookie()
+        try:
+            jar.load(self.headers.get("Cookie", ""))
+            return jar[name].value
+        except Exception:
+            return ""
+
+    def oauth_redirect(self, location: str, cookies: list[str] | None = None) -> None:
+        self.send_response(HTTPStatus.FOUND)
+        self.send_header("Location", location)
+        self.send_header("Cache-Control", "no-store")
+        for cookie in cookies or []:
+            self.send_header("Set-Cookie", cookie)
+        self.end_headers()
+
+    def oauth_error(self, code: str, provider: str = "") -> None:
+        safe_code = code if code in {"not_configured", "cancelled", "failed", "telegram_unlinked", "login_required", "link_conflict", "email_unavailable"} else "failed"
+        suffix = f"&provider={provider}" if provider in OAUTH_PROVIDERS else ""
+        self.oauth_redirect(f"/?auth_error={safe_code}{suffix}")
+
+    def oauth_cookie(self, provider: str, state: str, clear: bool = False) -> str:
+        value = "" if clear else state
+        max_age = 0 if clear else 600
+        parts = [f"studytrack_oauth_{provider}={value}", "Path=/", "HttpOnly", "SameSite=Lax", f"Max-Age={max_age}"]
+        if secure_cookies_enabled():
+            parts.append("Secure")
+        return "; ".join(parts)
+
+    def oauth_public_base(self) -> str:
+        configured = os.environ.get("STUDYTRACK_PUBLIC_URL", "").strip().rstrip("/")
+        request_host = self.headers.get("Host", "").strip()
+        if configured:
+            parsed = urlsplit(configured)
+            if (parsed.scheme not in {"http", "https"} or not parsed.netloc or parsed.path or parsed.query or parsed.fragment
+                    or parsed.username or parsed.password or parsed.netloc.lower() != request_host.lower()):
+                raise ValueError("STUDYTRACK_PUBLIC_URL must be this site's exact HTTPS origin.")
+            if secure_cookies_enabled() and parsed.scheme != "https":
+                raise ValueError("Social sign-in requires an HTTPS public URL when hosted online.")
+            return configured
+        if not re.fullmatch(r"[A-Za-z0-9.-]+(?::[0-9]{1,5})?", request_host):
+            raise ValueError("Set STUDYTRACK_PUBLIC_URL to your site's HTTPS origin before enabling social sign-in.")
+        scheme = "https" if secure_cookies_enabled() else "http"
+        return f"{scheme}://{request_host}"
+
+    def oauth_json_request(self, url: str, data: dict | None = None, headers: dict | None = None):
+        request_headers = {"Accept": "application/json", "User-Agent": "StudyTrack sign-in"}
+        request_headers.update(headers or {})
+        body = None
+        if data is not None:
+            body = urlencode(data).encode("utf-8")
+            request_headers.setdefault("Content-Type", "application/x-www-form-urlencoded")
+        request = Request(url, data=body, headers=request_headers, method="POST" if body is not None else "GET")
+        try:
+            with urlopen(request, timeout=15) as response:
+                raw = response.read(1_048_577)
+            if len(raw) > 1_048_576:
+                raise ValueError("The identity provider returned an oversized response.")
+            result = json.loads(raw.decode("utf-8"))
+            if not isinstance(result, (dict, list)):
+                raise ValueError("The identity provider returned an unexpected response.")
+            return result
+        except (HTTPError, URLError, TimeoutError, OSError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+            raise ValueError("The identity provider could not complete sign-in. Please try again.") from exc
+
+    def verify_oidc_token(self, token: str, provider: str, client_id: str, nonce: str) -> dict:
+        if provider == "google":
+            jwks_url, issuer = "https://www.googleapis.com/oauth2/v3/certs", "https://accounts.google.com"
+        elif provider == "telegram":
+            jwks_url, issuer = "https://oauth.telegram.org/.well-known/jwks.json", "https://oauth.telegram.org"
+        else:
+            raise ValueError("This provider does not use OpenID Connect.")
+        signing_key = PyJWKClient(jwks_url, cache_jwk_set=True, lifespan=3600, timeout=10).get_signing_key_from_jwt(token)
+        claims = jwt.decode(token, signing_key.key, algorithms=["RS256"], audience=client_id,
+                            issuer=issuer, leeway=60, options={"require": ["exp", "iat", "sub"]})
+        received_nonce = str(claims.get("nonce", ""))
+        if not received_nonce or not hmac.compare_digest(received_nonce, nonce):
+            raise ValueError("The identity provider response did not pass sign-in verification.")
+        return claims
+
+    def fetch_oauth_identity(self, provider: str, code: str, verifier: str, nonce: str, redirect_uri: str, client_id: str, client_secret: str) -> tuple[str, str, str]:
+        config = OAUTH_PROVIDERS[provider]
+        token_headers = {"Accept": "application/json"}
+        token_data = {"grant_type": "authorization_code", "code": code, "redirect_uri": redirect_uri,
+                      "client_id": client_id, "code_verifier": verifier}
+        if provider == "telegram":
+            import base64
+            basic = base64.b64encode(f"{client_id}:{client_secret}".encode("utf-8")).decode("ascii")
+            token_headers["Authorization"] = f"Basic {basic}"
+        else:
+            token_data["client_secret"] = client_secret
+        token = self.oauth_json_request(config["token_url"], token_data, token_headers)
+        if not isinstance(token, dict) or not token.get("access_token"):
+            raise ValueError("The identity provider did not issue a sign-in token.")
+
+        if provider == "google":
+            claims = self.verify_oidc_token(str(token.get("id_token", "")), provider, client_id, nonce)
+            if claims.get("email_verified") is not True:
+                raise ValueError("Use a verified Google email address to continue.")
+            email = str(claims.get("email", "")).strip().lower()
+            if not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+                raise ValueError("Google did not provide a valid email address.")
+            return str(claims["sub"]), email, str(claims.get("name") or email.split("@", 1)[0])
+
+        if provider == "github":
+            bearer_headers = {"Authorization": f"Bearer {token['access_token']}",
+                              "Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
+            person = self.oauth_json_request("https://api.github.com/user", headers=bearer_headers)
+            emails = self.oauth_json_request("https://api.github.com/user/emails?per_page=100", headers=bearer_headers)
+            if not isinstance(person, dict) or not isinstance(emails, list):
+                raise ValueError("GitHub did not return a usable account profile.")
+            primary = next((item for item in emails if isinstance(item, dict) and item.get("primary") is True and item.get("verified") is True), None)
+            email = str(primary.get("email", "")).strip().lower() if primary else ""
+            if not email or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+                raise ValueError("GitHub needs a verified primary email address for StudyTrack sign-in.")
+            subject = str(person.get("id", ""))
+            name = str(person.get("name") or person.get("login") or email.split("@", 1)[0])
+            if not subject:
+                raise ValueError("GitHub did not return a stable account ID.")
+            return subject, email, name
+
+        claims = self.verify_oidc_token(str(token.get("id_token", "")), provider, client_id, nonce)
+        subject = str(claims.get("sub", ""))
+        if not subject:
+            raise ValueError("Telegram did not return a stable account ID.")
+        # Telegram does not provide an email claim. A login must first be linked to a StudyTrack account.
+        return subject, "", str(claims.get("name") or claims.get("preferred_username") or "Telegram user")
+
+    def oauth_start(self, provider: str, link: bool = False, return_json: bool = False) -> None:
+        config = OAUTH_PROVIDERS.get(provider)
+        if not config:
+            if return_json:
+                self.send_error_json(HTTPStatus.NOT_FOUND, "That sign-in provider is not available.")
+            else:
+                self.oauth_error("failed")
+            return
+        client_id = os.environ.get(config["client_id_env"], "").strip()
+        client_secret = os.environ.get(config["client_secret_env"], "").strip()
+        if not client_id or not client_secret:
+            if return_json:
+                self.send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, f"{provider.title()} sign-in is not configured by the app owner yet.")
+            else:
+                self.oauth_error("not_configured", provider)
+            return
+        user = self.session() if link else None
+        if link and not user:
+            if return_json:
+                self.send_error_json(HTTPStatus.UNAUTHORIZED, "Sign in before connecting a social login method.")
+            else:
+                self.oauth_error("login_required", provider)
+            return
+        try:
+            redirect_uri = self.oauth_public_base() + f"/auth/{provider}/callback"
+        except ValueError:
+            if return_json:
+                self.send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "Set STUDYTRACK_PUBLIC_URL to this site's HTTPS origin before connecting social sign-in.")
+            else:
+                self.oauth_error("not_configured", provider)
+            return
+
+        state = secrets.token_urlsafe(32)
+        verifier = secrets.token_urlsafe(48)
+        nonce = secrets.token_urlsafe(32)
+        challenge = urlsafe_b64encode(hashlib.sha256(verifier.encode("ascii")).digest()).rstrip(b"=").decode("ascii")
+        with connect_db() as db:
+            db.execute("DELETE FROM oauth_states WHERE expires_at < ?", (int(time.time()),))
+            db.execute("INSERT INTO oauth_states(state_hash,provider,code_verifier,nonce,link_user_id,expires_at,created_at) VALUES(?,?,?,?,?,?,?)",
+                       (hashlib.sha256(state.encode()).hexdigest(), provider, verifier, nonce, user["id"] if user else None,
+                        int(time.time()) + 600, utc_now()))
+        scope = {"google": "openid email profile", "github": "read:user user:email", "telegram": "openid profile"}[provider]
+        params = {"client_id": client_id, "redirect_uri": redirect_uri, "response_type": "code",
+                  "scope": scope, "state": state, "code_challenge": challenge, "code_challenge_method": "S256"}
+        if provider in {"google", "telegram"}:
+            params["nonce"] = nonce
+        if provider == "google":
+            params.update({"prompt": "select_account", "access_type": "online"})
+        location = config["authorize_url"] + "?" + urlencode(params)
+        state_cookie = self.oauth_cookie(provider, state)
+        if return_json:
+            self.send_json({"url": location}, cookie=state_cookie)
+        else:
+            self.oauth_redirect(location, [state_cookie])
+
+    def oauth_callback(self, provider: str) -> None:
+        config = OAUTH_PROVIDERS.get(provider)
+        if not config:
+            self.oauth_error("failed")
+            return
+        query = parse_qs(urlsplit(self.path).query)
+        state = str(query.get("state", [""])[0])
+        cookie_state = self.request_cookie(f"studytrack_oauth_{provider}")
+        clear_cookie = self.oauth_cookie(provider, "", clear=True)
+        if not state or not cookie_state or not hmac.compare_digest(state, cookie_state):
+            self.oauth_redirect("/?auth_error=failed", [clear_cookie])
+            return
+        state_hash = hashlib.sha256(state.encode()).hexdigest()
+        with connect_db() as db:
+            state_row = db.execute("SELECT * FROM oauth_states WHERE state_hash=? AND provider=? AND expires_at>=?",
+                                   (state_hash, provider, int(time.time()))).fetchone()
+            if state_row:
+                db.execute("DELETE FROM oauth_states WHERE state_hash=?", (state_hash,))
+        if not state_row:
+            self.oauth_redirect("/?auth_error=failed", [clear_cookie])
+            return
+        if query.get("error"):
+            self.oauth_redirect("/?auth_error=cancelled", [clear_cookie])
+            return
+        code = str(query.get("code", [""])[0])
+        client_id = os.environ.get(config["client_id_env"], "").strip()
+        client_secret = os.environ.get(config["client_secret_env"], "").strip()
+        try:
+            if not code or not client_id or not client_secret:
+                raise ValueError("The identity provider did not complete sign-in.")
+            redirect_uri = self.oauth_public_base() + f"/auth/{provider}/callback"
+            subject, email, name = self.fetch_oauth_identity(provider, code, state_row["code_verifier"],
+                                                              state_row["nonce"], redirect_uri, client_id, client_secret)
+            link_user_id = state_row["link_user_id"]
+            if link_user_id:
+                current = self.session()
+                if not current or current["id"] != link_user_id:
+                    raise ValueError("Sign in again before connecting a social login method.")
+                self.link_oauth_identity(provider, subject, link_user_id)
+                self.oauth_redirect("/?auth_status=linked", [clear_cookie])
+                return
+            if provider == "telegram":
+                linked = self.find_oauth_user(provider, subject)
+                if not linked:
+                    raise LookupError("Telegram must be connected from StudyTrack Settings before it can be used to sign in.")
+                user = linked
+            else:
+                user = self.create_or_link_oauth_user(provider, subject, email, name)
+            if user["is_disabled"]:
+                raise ValueError("This StudyTrack account is paused. Contact the app owner.")
+            with connect_db() as db:
+                log_activity(db, user["id"], f"Signed in with {provider.title()}")
+            token, _csrf = self.make_session(user["id"])
+            self.oauth_redirect("/", [clear_cookie, self.set_session_cookie(token)])
+        except LookupError:
+            self.oauth_redirect("/?auth_error=telegram_unlinked", [clear_cookie])
+        except Exception:
+            self.oauth_redirect(f"/?auth_error=failed&provider={provider}", [clear_cookie])
+
+    def find_oauth_user(self, provider: str, subject: str):
+        with connect_db() as db:
+            return db.execute("""SELECT u.* FROM oauth_accounts a JOIN users u ON u.id=a.user_id
+                                WHERE a.provider=? AND a.subject=?""", (provider, subject)).fetchone()
+
+    def link_oauth_identity(self, provider: str, subject: str, user_id: str) -> None:
+        with connect_db() as db:
+            existing = db.execute("SELECT user_id FROM oauth_accounts WHERE provider=? AND subject=?", (provider, subject)).fetchone()
+            if existing and existing["user_id"] != user_id:
+                raise ValueError("This social account is already connected to another StudyTrack account.")
+            already_linked = db.execute("SELECT subject FROM oauth_accounts WHERE provider=? AND user_id=?", (provider, user_id)).fetchone()
+            if already_linked and already_linked["subject"] != subject:
+                raise ValueError(f"A different {provider.title()} account is already connected to this StudyTrack account.")
+            try:
+                db.execute("INSERT OR IGNORE INTO oauth_accounts(provider,subject,user_id,created_at) VALUES(?,?,?,?)",
+                           (provider, subject, user_id, utc_now()))
+                log_activity(db, user_id, f"Connected {provider.title()} sign-in")
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("A different account from this provider is already connected.") from exc
+
+    def create_or_link_oauth_user(self, provider: str, subject: str, email: str, name: str):
+        linked = self.find_oauth_user(provider, subject)
+        if linked:
+            return linked
+        clean_name = " ".join(str(name).split())[:60] or email.split("@", 1)[0]
+        with connect_db() as db:
+            row = db.execute("SELECT * FROM users WHERE email=?", (email,)).fetchone()
+            if row:
+                if row["is_disabled"]:
+                    raise ValueError("This StudyTrack account is paused. Contact the app owner.")
+                user_id = row["id"]
+            else:
+                user_id = secrets.token_urlsafe(18)
+                salt = secrets.token_bytes(16)
+                random_password = secrets.token_urlsafe(48)
+                db.execute("INSERT INTO users(id,email,name,role,password_salt,password_hash,created_at) VALUES(?,?,?,?,?,?,?)",
+                           (user_id, email, clean_name, "student", salt.hex(), password_digest(random_password, salt).hex(), utc_now()))
+                log_activity(db, user_id, f"Created a student account with {provider.title()}")
+            try:
+                db.execute("INSERT INTO oauth_accounts(provider,subject,user_id,created_at) VALUES(?,?,?,?)",
+                           (provider, subject, user_id, utc_now()))
+            except sqlite3.IntegrityError as exc:
+                raise ValueError("This social account is already connected to a different StudyTrack account.") from exc
+            return db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
+
+    def get_oauth_providers(self, user: dict) -> None:
+        with connect_db() as db:
+            rows = db.execute("SELECT provider FROM oauth_accounts WHERE user_id=? ORDER BY provider", (user["id"],)).fetchall()
+        self.send_json({"providers": [row["provider"] for row in rows]})
+
     def do_GET(self) -> None:
         path = unquote(urlsplit(self.path).path)
         try:
+            match = re.fullmatch(r"/auth/(google|github|telegram)(?:/callback)?", path)
+            if match:
+                provider = match.group(1)
+                if path.endswith("/callback"):
+                    self.oauth_callback(provider)
+                else:
+                    self.oauth_start(provider)
+                return
             if path == "/api/session":
                 user = self.session()
                 self.send_json({"user": {k: user[k] for k in ("id","email","name","role")} if user else None,
                                 "csrf": user["csrf"] if user else None})
+                return
+            if path == "/api/auth/providers":
+                user = self.require_session()
+                if user:
+                    self.get_oauth_providers(user)
                 return
             if path == "/api/data":
                 user = self.require_session()
@@ -364,6 +763,12 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
     def do_POST(self) -> None:
         path = unquote(urlsplit(self.path).path)
         try:
+            match = re.fullmatch(r"/api/auth/(google|github|telegram)/link", path)
+            if match:
+                user = self.require_session(csrf=True)
+                if user:
+                    self.oauth_start(match.group(1), link=True, return_json=True)
+                return
             if path == "/api/register":
                 self.register()
                 return
@@ -375,7 +780,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                 if user:
                     with connect_db() as db:
                         db.execute("DELETE FROM sessions WHERE token_hash=?", (user["token_hash"],))
-                    cookie = f"{COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0" + ("; Secure" if os.environ.get("STUDYTRACK_SECURE_COOKIE") == "1" else "")
+                    cookie = f"{COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0" + ("; Secure" if secure_cookies_enabled() else "")
                     self.send_json({"ok": True}, cookie=cookie)
                 return
             if path == "/api/classes":
@@ -505,7 +910,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         if not self.check_origin():
             self.send_error_json(HTTPStatus.FORBIDDEN, "Request origin was not accepted.")
             return
-        ip = self.client_address[0]
+        ip = self.client_ip()
         if rate_limited(ip):
             self.send_error_json(HTTPStatus.TOO_MANY_REQUESTS, "Too many sign-in attempts. Wait a few minutes and try again.")
             return
@@ -557,7 +962,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         if not self.check_origin():
             self.send_error_json(HTTPStatus.FORBIDDEN, "Request origin was not accepted.")
             return
-        ip = self.client_address[0]
+        ip = self.client_ip()
         if rate_limited(ip):
             self.send_error_json(HTTPStatus.TOO_MANY_REQUESTS, "Too many sign-in attempts. Wait a few minutes and try again.")
             return
@@ -745,7 +1150,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         class_id=secrets.token_urlsafe(12)
         with connect_db() as db:
             while True:
-                code="".join(secrets.choice("ABCDEFGHJKLMNPQRSTUVWXYZ23456789") for _ in range(6))
+                code="".join(secrets.choice(CLASS_JOIN_ALPHABET) for _ in range(12))
                 if not db.execute("SELECT 1 FROM classrooms WHERE join_code=?",(code,)).fetchone(): break
             db.execute("INSERT INTO classrooms(id,teacher_id,name,join_code,created_at) VALUES(?,?,?,?,?)",(class_id,user["id"],name,code,utc_now()))
             log_activity(db, user["id"], f"Created class: {name}")
@@ -754,13 +1159,22 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
     def join_class(self, user: dict) -> None:
         if user["role"] != "student":
             self.send_error_json(HTTPStatus.FORBIDDEN,"Only student accounts can join a class.");return
+        attempt_key=f"join:{user['id']}"
+        if rate_limited(attempt_key,limit=8,window=600):
+            self.send_error_json(HTTPStatus.TOO_MANY_REQUESTS,"Too many incorrect class codes. Wait a few minutes and try again.");return
         body=self.read_json();code=str(body.get("code","")).strip().upper()
+        if not re.fullmatch(rf"(?:[{CLASS_JOIN_ALPHABET}]{{6}}|[{CLASS_JOIN_ALPHABET}]{{12}})",code):
+            record_failed_auth(attempt_key,window=600)
+            self.send_error_json(HTTPStatus.NOT_FOUND,"That class code was not found.");return
         with connect_db() as db:
             classroom=db.execute("SELECT id,name FROM classrooms WHERE join_code=?",(code,)).fetchone()
             if not classroom:
+                record_failed_auth(attempt_key,window=600)
                 self.send_error_json(HTTPStatus.NOT_FOUND,"That class code was not found.");return
             db.execute("INSERT OR IGNORE INTO class_memberships(class_id,user_id,joined_at) VALUES(?,?,?)",(classroom["id"],user["id"],utc_now()))
             log_activity(db, user["id"], f"Joined class: {classroom['name']}")
+        with AUTH_LOCK:
+            AUTH_ATTEMPTS.pop(attempt_key,None)
         self.send_json({"class":{"id":classroom["id"],"name":classroom["name"]}},HTTPStatus.CREATED)
 
     def get_class_detail(self,user:dict,class_id:str)->None:
@@ -1220,25 +1634,60 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         disposition=f"attachment; filename=\"{fallback}\"; filename*=UTF-8''{quote(name,safe='')}"
         self.send_response(HTTPStatus.OK);self.send_header("Content-Type",mime);self.send_header("Content-Length",str(len(data)))
         self.send_header("Content-Disposition",disposition);self.send_header("Cache-Control","private, no-store")
-        self.send_header("X-Content-Type-Options","nosniff");self.send_header("Referrer-Policy","no-referrer")
         self.end_headers();self.wfile.write(data)
 
     def serve_static(self, path: str) -> None:
         relative = "index.html" if path in ("", "/") else path.lstrip("/")
-        target = (ROOT / relative).resolve()
-        if ROOT not in target.parents and target != ROOT:
-            self.send_error(HTTPStatus.FORBIDDEN);return
+        parts = Path(relative).parts
+        if (not relative or "\x00" in relative or any(part in {".", ".."} or part.startswith(".") for part in parts)):
+            self.send_error(HTTPStatus.NOT_FOUND);return
+        if relative in PUBLIC_STATIC_FILES and len(parts) == 1:
+            target = (ROOT / relative).resolve()
+        elif parts and parts[0] in PUBLIC_STATIC_DIRS:
+            public_root = (ROOT / parts[0]).resolve()
+            target = (public_root.joinpath(*parts[1:])).resolve()
+            if public_root not in target.parents:
+                self.send_error(HTTPStatus.NOT_FOUND);return
+        else:
+            # Never expose the SQLite database, source/config files, dotfiles, or Git metadata.
+            self.send_error(HTTPStatus.NOT_FOUND);return
         if not target.is_file():
             self.send_error(HTTPStatus.NOT_FOUND);return
         data=target.read_bytes();mime=mimetypes.guess_type(target.name)[0] or "application/octet-stream"
         self.send_response(HTTPStatus.OK)
         self.send_header("Content-Type",mime+("; charset=utf-8" if mime.startswith(("text/","application/javascript")) else ""))
         self.send_header("Content-Length",str(len(data)))
-        self.send_header("X-Content-Type-Options","nosniff")
-        self.send_header("X-Frame-Options","DENY")
-        self.send_header("Referrer-Policy","no-referrer")
-        self.send_header("Content-Security-Policy","default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self' data:; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
+        if relative in {"index.html", "manifest.json", "sw.js"}:
+            self.send_header("Cache-Control", "no-cache")
+        self.send_header("Content-Security-Policy","default-src 'self'; img-src 'self' data: blob:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self'; font-src 'self' data:; manifest-src 'self'; worker-src 'self'; form-action 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none'")
         self.end_headers();self.wfile.write(data)
+
+
+class BoundedThreadingHTTPServer(ThreadingHTTPServer):
+    """Limit concurrent requests so bursts cannot spawn unbounded worker threads."""
+    daemon_threads = True
+    request_queue_size = 64
+    max_workers = 8
+
+    def __init__(self, *args, **kwargs):
+        self._worker_slots = threading.BoundedSemaphore(self.max_workers)
+        super().__init__(*args, **kwargs)
+
+    def process_request(self, request, client_address):
+        if not self._worker_slots.acquire(blocking=False):
+            self.shutdown_request(request)
+            return
+        try:
+            super().process_request(request, client_address)
+        except Exception:
+            self._worker_slots.release()
+            raise
+
+    def process_request_thread(self, request, client_address):
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._worker_slots.release()
 
 
 def main() -> None:
@@ -1249,7 +1698,7 @@ def main() -> None:
     port=int(os.environ.get("PORT",os.environ.get("STUDYTRACK_PORT","8000")))
     print(f"StudyTrack running at http://{host}:{port}")
     print("Keep this terminal open while using the app. Set STUDYTRACK_TEACHER_CODE to allow teacher registration.")
-    ThreadingHTTPServer((host,port),StudyTrackHandler).serve_forever()
+    BoundedThreadingHTTPServer((host,port),StudyTrackHandler).serve_forever()
 
 
 if __name__ == "__main__":

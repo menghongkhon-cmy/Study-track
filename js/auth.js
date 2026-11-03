@@ -45,6 +45,8 @@ export function directMessages(peerId=""){return apiRequest(`/api/messages${peer
 export function sendDirectMessage(recipientId,body){return apiRequest("/api/messages",{method:"POST",body:{recipient_id:recipientId,body},authWrite:true});}
 export function adminOverview(){return apiRequest("/api/admin/overview");}
 export function manageAccount(userId,changes){return apiRequest(`/api/admin/users/${encodeURIComponent(userId)}`,{method:"PATCH",body:changes,authWrite:true});}
+export function linkedOAuthProviders(){return apiRequest("/api/auth/providers");}
+export function startOAuthLink(provider){if(!["google","github","telegram"].includes(provider))throw new Error("Unsupported sign-in provider.");return apiRequest(`/api/auth/${provider}/link`,{method:"POST",body:{},authWrite:true});}
 export function classQuizzes(classId){return apiRequest(`/api/classes/${encodeURIComponent(classId)}/quizzes`);}
 export function getQuiz(quizId){return apiRequest(`/api/quizzes/${encodeURIComponent(quizId)}`);}
 export function createQuiz(classId,payload){return apiRequest(`/api/classes/${encodeURIComponent(classId)}/quizzes`,{method:"POST",body:payload,authWrite:true});}

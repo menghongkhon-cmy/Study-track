@@ -5,3 +5,6 @@ studytrack.sqlite3-shm
 studytrack.sqlite3-wal
 /upload/
 /uploads/
+.env
+.env.*
+!.env.example

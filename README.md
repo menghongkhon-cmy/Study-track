@@ -1,16 +1,17 @@
 # StudyTrack
 
-StudyTrack is a responsive personal study and score manager for students, with a classroom area for teachers. The interface is built with HTML, CSS, and vanilla JavaScript. Shared sign-in and classroom features use a small Python standard-library server with SQLite; there is no Node.js, PHP, Firebase, Supabase, external API, or analytics code.
+StudyTrack is a responsive personal study and score manager for students, with a classroom area for teachers. The interface is built with HTML, CSS, and vanilla JavaScript. Shared sign-in and classroom features use a small Python server with SQLite. Optional social sign-in contacts only the identity providers that the app owner configures; the app does not use analytics or external learning services.
 
 ## Run StudyTrack
 
-Start the included server from this folder. Python 3.10 or newer is recommended.
+Install the small server dependency, then start StudyTrack from this folder. Python 3.10 or newer is recommended.
 
 ```bash
+python3 -m pip install -r requirements.txt
 python3 server.py
 ```
 
-On Windows, run `py server.py` from PowerShell. Then open <http://127.0.0.1:8000>. Keep the server running while using the app. The default server listens only on this computer.
+On Windows, run `py -m pip install -r requirements.txt` and then `py server.py` from PowerShell. Then open <http://127.0.0.1:8000>. Keep the server running while using the app. The default server listens only on this computer.
 
 If sign-up shows `405`, the page is being served without the account API. Start `py server.py` in the project folder and use the `127.0.0.1:8000` address above; do not open `index.html` directly or use a static preview link.
 
@@ -45,6 +46,32 @@ The server creates `studytrack.sqlite3` in this folder for accounts, study data,
 
 Students do not need that code. There is currently no email verification or password-reset flow, so accounts should use a password they can keep safe.
 
+## Social sign-in
+
+Google and GitHub can create a student account on first use or sign in to a matching account using the provider's verified email. Existing teacher or admin roles remain unchanged when the verified email matches. New provider sign-ups receive the Student role; social sign-in never grants teacher or admin access by itself. Telegram does not provide an email address, so first sign in with an existing StudyTrack method, then connect Telegram from **Settings & privacy → Connected sign-in methods**. After linking, Telegram can be used on the login screen.
+
+Register OAuth credentials with each provider and use these exact callback URLs, replacing the example domain with the public StudyTrack origin:
+
+```text
+https://your-studytrack-domain/auth/google/callback
+https://your-studytrack-domain/auth/github/callback
+https://your-studytrack-domain/auth/telegram/callback
+```
+
+For Telegram, also add the site's origin and callback URL to the bot's allowed URLs in @BotFather. Then add these values to the server's environment (for Render, use the service's **Environment** page):
+
+```text
+STUDYTRACK_PUBLIC_URL=https://your-studytrack-domain
+STUDYTRACK_GOOGLE_CLIENT_ID=...
+STUDYTRACK_GOOGLE_CLIENT_SECRET=...
+STUDYTRACK_GITHUB_CLIENT_ID=...
+STUDYTRACK_GITHUB_CLIENT_SECRET=...
+STUDYTRACK_TELEGRAM_CLIENT_ID=...
+STUDYTRACK_TELEGRAM_CLIENT_SECRET=...
+```
+
+Set only the providers you plan to offer. Keep all client secrets on the server, never in JavaScript or GitHub. Google and Telegram ID tokens are signature-checked; each provider flow uses state and PKCE. GitHub access is limited to basic profile and verified email (`read:user user:email`). StudyTrack does not store provider access tokens. Install the server dependencies with `pip install -r requirements.txt` before starting the app.
+
 ## Use across devices
 
 The included server is configured for local use. To allow sign-in from other devices, deploy the app and server on a host that those devices can reach, use HTTPS, set `STUDYTRACK_SECURE_COOKIE=1`, and keep the SQLite database on persistent storage. Configure `STUDYTRACK_HOST=0.0.0.0` only when the deployment environment requires it. Do not expose the development server directly to the public internet.
@@ -74,6 +101,10 @@ The app stores account data and submissions in the server's SQLite database so u
 ## Privacy and security
 
 StudyTrack sends account and app data only to the server you configure, so shared accounts and cross-device sync require that server. `LocalStorage` keeps a browser copy while the app is in use; it is not encrypted. The server stores account and study records in SQLite. Passwords are stored as salted PBKDF2 hashes, but study records are not encrypted by this app, and anyone with access to the server database can inspect them. Admins can view account details and short activity labels, but the console does not expose private chat text, study notes, or personal scores. Use HTTPS for online deployments. The optional local PIN is a casual browser lock, not encryption.
+
+The server now serves only the public app files from `index.html`, `manifest.json`, `sw.js`, `assets/`, `css/`, and `js/`; it does not serve the database, Git files, environment files, or other project files. Authenticated browser writes require a matching same-origin request and CSRF token; sign-in and registration also require a same-origin request. Hosted sessions use secure, HttpOnly, SameSite cookies and additional browser security headers. Login/code failures are rate-limited, new class invite codes are longer with a separate attempt limit per signed-in student, and OAuth callbacks validate state and PKCE. Keep teacher/admin access codes and provider client secrets private, use unique passwords, and never commit secrets or database backups to GitHub.
+
+These defenses reduce common risks, but cannot guarantee that the app is impossible to hack. The current backend uses Python's built-in `http.server`, which is not intended as a production web server. Use this app for learning/testing only until the backend is moved to a production-grade server and receives a security review.
 
 Export a JSON backup before deleting data. “Delete all study data” removes the signed-in account's profile and study records from the server but keeps the account, classes, assignments, and submissions. Pausing an account from the Admin console ends its sessions and prevents sign-in until it is restored.
 
