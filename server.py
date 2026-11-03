@@ -21,6 +21,12 @@ from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlsplit
+import os
+
+from flask import app
+host = os.getenv('HOST', '0.0.0.0')
+port = int(os.getenv('PORT', 8080))
+app.run(host=host, port=port)
 
 ROOT = Path(__file__).resolve().parent
 DB_PATH = Path(os.environ.get("STUDYTRACK_DB", str(ROOT / "studytrack.sqlite3"))).expanduser()
