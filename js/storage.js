@@ -6,7 +6,7 @@ export const KEYS = {
 
 const defaults = {
   profile: { name: "Student", avatar: "S", photo: "", role: "student" }, subjects: [], scores: [], tasks: [], sessions: [], notes: [], goals: [],
-  achievements: [], settings: { theme: "light", focusMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15, pinEnabled: false, pinHash: "", timer: { mode: "focus", remaining: 1500, running: false, endsAt: null } }
+  achievements: [], settings: { theme: "dark", focusMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15, pinEnabled: false, pinHash: "", timer: { mode: "focus", remaining: 1500, running: false, endsAt: null } }
 };
 
 export function read(name) {

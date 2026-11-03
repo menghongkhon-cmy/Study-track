@@ -1056,7 +1056,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         data.setdefault("profile", {"name":user["name"],"avatar":user["name"][:1].upper(),"photo":"","coverPhoto":"","bio":"","visibility":"classmates","role":user["role"]})
         data.setdefault("subjects",[]);data.setdefault("scores",[]);data.setdefault("tasks",[]);data.setdefault("sessions",[])
         data.setdefault("notes",[]);data.setdefault("goals",[]);data.setdefault("achievements",[])
-        data.setdefault("settings", {"theme":"light","focusMinutes":25,"shortBreakMinutes":5,"longBreakMinutes":15,"pinEnabled":False,"pinHash":"","timer":{"mode":"focus","remaining":1500,"running":False,"endsAt":None}})
+        data.setdefault("settings", {"theme":"dark","focusMinutes":25,"shortBreakMinutes":5,"longBreakMinutes":15,"pinEnabled":False,"pinHash":"","timer":{"mode":"focus","remaining":1500,"running":False,"endsAt":None}})
         if isinstance(data["profile"],dict):
             data["profile"]={**data["profile"],"name":user["name"],"role":user["role"]}
         self.send_json({"data":data})

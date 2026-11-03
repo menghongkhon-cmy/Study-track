@@ -111,7 +111,7 @@ The app stores account data and submissions in the server's SQLite database so u
 - Dashboard, subjects, score tracker, planner calendar, Pomodoro timer, goals, notes, analytics, and achievements.
 - Personal notes use a document-style editor with headings, emphasis, lists, and quote formatting. Saved documents are sanitized before display.
 - Interactive charts and statistics calculated from each signed-in user's records.
-- Light and dark themes, subtle transitions, reduced-motion support, responsive navigation, and empty states.
+- Dark theme by default, with an optional light theme, subtle transitions, reduced-motion support, responsive navigation, and empty states.
 - Switch the interface between English and Khmer from the sign-in screen or top bar; your choice is saved in this browser.
 - Admins can set a shared Angkor Wat or animated aurora background, or upload a GIF/image that is saved in the app database.
 - Profile initials or an uploaded profile picture. Pictures are resized in the browser and stored with the account's app data.

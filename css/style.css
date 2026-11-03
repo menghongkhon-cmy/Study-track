@@ -720,3 +720,100 @@ body.light-theme[data-admin-background="custom"]::before{background-image:linear
 @keyframes roleIconIn{from{opacity:.5;transform:scale(.78) rotate(-8deg)}to{opacity:1;transform:scale(1) rotate(0)}}
 @media(max-width:520px){.auth-form-panel{padding:26px 18px}.auth-head-row{gap:8px;align-items:flex-start}.auth-head-row .auth-welcome h2{font-size:22px;letter-spacing:-.7px}.auth-head-row .auth-welcome p{max-width:220px}.auth-language-control{min-height:36px;gap:5px;padding:0 7px;border-radius:10px}.auth-language-control .language-switch{width:58px;font-size:10px}.auth-language-control .language-control-icon svg{width:14px;height:14px}.language-chevron{width:10px;height:10px}.auth-role-picker{gap:3px;padding:4px}.auth-role-picker button{gap:5px;min-height:40px;font-size:9px}.auth-role-picker .studytrack-icon{width:13px;height:13px}}
 @media(max-width:360px){.auth-head-row{display:grid;grid-template-columns:minmax(0,1fr) auto}.auth-head-row .auth-welcome h2{font-size:20px}.auth-role-picker button{font-size:8px;gap:4px}}
+
+/* Native select popups look different across browsers, so language choice uses a compact custom menu. */
+.language-picker.language-control{position:relative;display:inline-flex;align-items:center;gap:0;min-height:0;padding:0;border:0;background:transparent;color:inherit;overflow:visible}
+.language-picker-trigger{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:36px;padding:0 10px;border:1px solid rgba(156,174,201,.2);border-radius:12px;background:rgba(22,34,55,.84);color:#e4ebf6;font-size:11px;font-weight:700;cursor:pointer;box-shadow:0 5px 16px rgba(0,0,0,.13);transition:background .18s,border-color .18s,box-shadow .18s,transform .18s}
+.language-picker-trigger:hover,.language-picker-trigger[aria-expanded="true"]{background:#202f4b;border-color:rgba(167,139,250,.55);box-shadow:0 8px 22px rgba(0,0,0,.2)}
+.language-picker-trigger:active{transform:scale(.98)}
+.language-picker-trigger:focus-visible,.language-menu button:focus-visible{outline:3px solid rgba(167,139,250,.45);outline-offset:2px}
+.language-picker-trigger .language-control-icon{display:inline-flex;color:#b4a0ff}
+.language-picker-trigger .language-control-icon svg{display:block;width:16px;height:16px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.language-current{min-width:40px;text-align:left;white-space:nowrap}
+.language-chevron{width:13px;height:13px;display:inline-flex;color:#aebbd0;transition:transform .18s}
+.language-picker-trigger[aria-expanded="true"] .language-chevron{transform:rotate(180deg)}
+.language-chevron svg{display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.language-menu{position:absolute;top:calc(100% + 8px);right:0;z-index:120;display:grid;gap:3px;width:154px;padding:5px;border:1px solid rgba(148,163,184,.2);border-radius:13px;background:#111c30;color:#e7edf7;box-shadow:0 16px 38px rgba(0,0,0,.34);animation:languageMenuIn .16s ease-out both}
+.language-menu[hidden]{display:none!important}
+.language-menu button{width:100%;min-height:37px;display:flex;align-items:center;justify-content:space-between;gap:10px;padding:0 10px;border:0;border-radius:9px;background:transparent;color:#bac6d9;text-align:left;font-size:11px;font-weight:600;cursor:pointer;transition:background .16s,color .16s}
+.language-menu button:hover,.language-menu button.selected{background:rgba(139,116,255,.16);color:#fff}
+.language-menu button svg{width:15px;height:15px;fill:none;stroke:#b9a4ff;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.language-menu button[aria-checked="true"] svg{opacity:1}
+.topbar .language-picker-trigger{min-height:33px;gap:6px;padding:0 8px;border-radius:10px;background:rgba(18,30,49,.62);box-shadow:none;font-size:10px}
+.topbar .language-current{min-width:38px}
+.auth-language-control .language-picker-trigger{min-height:40px;gap:8px;padding:0 11px;border-color:rgba(167,139,250,.28);border-radius:13px;background:linear-gradient(145deg,rgba(34,47,74,.96),rgba(25,37,61,.96));color:#f0edff;box-shadow:0 8px 22px rgba(0,0,0,.18)}
+.auth-language-control .language-picker-trigger:hover,.auth-language-control .language-picker-trigger[aria-expanded="true"]{background:linear-gradient(145deg,#334468,#263653);border-color:rgba(184,163,255,.68)}
+.auth-language-control .language-current{min-width:45px}
+@keyframes languageMenuIn{from{opacity:0;transform:translateY(-4px) scale(.98)}to{opacity:1;transform:translateY(0) scale(1)}}
+
+/* Dark is the default account-screen theme; light remains available as a saved preference. */
+body:not(.light-theme) .auth-panel{background:linear-gradient(145deg,rgba(17,29,48,.98),rgba(12,21,36,.98));border-color:rgba(148,163,184,.2);box-shadow:0 28px 82px rgba(0,0,0,.34)}
+body:not(.light-theme) .auth-form-panel{background:linear-gradient(155deg,rgba(17,29,48,.98),rgba(13,22,37,.98))}
+body:not(.light-theme) .auth-welcome h2{color:#f3f6fc}
+body:not(.light-theme) .auth-welcome p{color:#a5b3c9}
+body:not(.light-theme) .auth-form .form-group label{color:#c2cde0}
+body:not(.light-theme) .auth-form .field{background:#111d31;border-color:rgba(148,163,184,.24);color:#f1f5fb}
+body:not(.light-theme) .auth-form .field:focus{background:#172640;border-color:#9b83fa;box-shadow:0 0 0 3px rgba(139,116,255,.18)}
+body:not(.light-theme) .auth-form .field::placeholder{color:#8493ab}
+body:not(.light-theme) .auth-form .help-text{color:#92a1b9}
+body:not(.light-theme) .auth-role-picker{background:#19263d;border:1px solid rgba(148,163,184,.12)}
+body:not(.light-theme) .auth-role-picker button{color:#a9b7cc}
+body:not(.light-theme) .auth-role-picker button.active{background:#2a3857;border-color:rgba(167,139,250,.22);color:#d6cbff;box-shadow:0 4px 13px rgba(0,0,0,.18)}
+body:not(.light-theme) .auth-role-picker button:hover{color:#e6deff}
+body:not(.light-theme) .auth-switch{color:#a4b2c7}
+body:not(.light-theme) .auth-switch button,body:not(.light-theme) .auth-about-link{color:#b9a5ff}
+body:not(.light-theme) .oauth-divider{color:#91a0b7}
+body:not(.light-theme) .oauth-divider::before,body:not(.light-theme) .oauth-divider::after{background:rgba(148,163,184,.2)}
+body:not(.light-theme) .oauth-login-button{border-color:rgba(148,163,184,.23);background:#17243a;color:#e6edf8}
+body:not(.light-theme) .oauth-login-note,body:not(.light-theme) .auth-security-note{color:#8392aa}
+body:not(.light-theme) .auth-bottom{border-top-color:rgba(148,163,184,.18)}
+body:not(.light-theme) .auth-bottom>span{color:#91a0b7}
+body:not(.light-theme) .auth-mobile-mark{background:#29264a;color:#c3b2ff}
+.light-theme .auth-panel{background:#fff;border-color:rgba(66,83,123,.12);box-shadow:0 28px 82px rgba(48,65,116,.15)}
+.light-theme .auth-form-panel{background:#fff}
+.light-theme .auth-welcome h2{color:#1d2944}
+.light-theme .auth-welcome p{color:#78849a}
+.light-theme .auth-form .form-group label{color:#43516c}
+.light-theme .auth-form .field{background:#fbfcff;border-color:#e2e6f0;color:#1d2944}
+.light-theme .auth-form .field:focus{background:#fff;border-color:#9783ea;box-shadow:0 0 0 3px rgba(120,98,226,.11)}
+.light-theme .auth-form .field::placeholder{color:#a3adbd}
+.light-theme .auth-form .help-text{color:#8792a8}
+.light-theme .auth-role-picker{background:#f2f4fa;border-color:transparent}
+.light-theme .auth-role-picker button{color:#6d7890}
+.light-theme .auth-role-picker button.active{background:#fff;border-color:rgba(107,89,205,.12);color:#5945c0;box-shadow:0 3px 9px rgba(56,68,112,.07)}
+.light-theme .auth-switch{color:#7c879b}
+.light-theme .auth-switch button,.light-theme .auth-about-link{color:#6a55d0}
+.light-theme .oauth-divider{color:#8b95a9}
+.light-theme .oauth-divider::before,.light-theme .oauth-divider::after{background:#e8ebf2}
+.light-theme .oauth-login-button{border-color:#e1e5ee;background:#fff;color:#2a3651}
+.light-theme .oauth-login-note,.light-theme .auth-security-note{color:#8b95a9}
+.light-theme .auth-bottom{border-top-color:#edf0f6}
+.light-theme .auth-bottom>span{color:#8a95a9}
+.light-theme .auth-mobile-mark{background:#f0edff;color:#715bda}
+.light-theme .language-picker-trigger{background:#f1efff;border-color:rgba(105,83,210,.2);color:#4e3f9e;box-shadow:0 5px 14px rgba(86,67,163,.07)}
+.light-theme .language-picker-trigger:hover,.light-theme .language-picker-trigger[aria-expanded="true"]{background:#e9e4ff;border-color:rgba(105,83,210,.4)}
+.light-theme .language-picker-trigger .language-control-icon{color:#725de0}
+.light-theme .language-picker-trigger .language-chevron{color:#6d5bc1}
+.light-theme .language-menu{border-color:rgba(69,86,124,.15);background:#fff;color:#26334e;box-shadow:0 16px 38px rgba(35,48,76,.2)}
+.light-theme .language-menu button{color:#53617a}
+.light-theme .language-menu button:hover,.light-theme .language-menu button.selected{background:#f0edff;color:#4f3cad}
+.light-theme .language-menu button svg{stroke:#6b55d5}
+@media(max-width:760px){.topbar .language-picker-trigger{min-height:32px;gap:5px;padding:0 7px;font-size:9px}.topbar .language-current{min-width:34px}.topbar .language-picker-trigger .language-control-icon svg{width:14px;height:14px}.topbar .language-chevron{width:11px;height:11px}.auth-language-control .language-picker-trigger{min-height:37px;padding:0 8px;gap:5px}.auth-language-control .language-current{min-width:39px}}
+@media(prefers-reduced-motion:reduce){.language-picker-trigger,.language-chevron,.language-menu{animation:none!important;transition:none!important}}
+
+/* Clear, platform-native typography with explicit Khmer glyph fallbacks. */
+:root{
+  --font-ui:"Inter","Segoe UI Variable","Segoe UI",-apple-system,BlinkMacSystemFont,system-ui,sans-serif;
+  --font-khmer:"Noto Sans Khmer","Khmer OS System","Leelawadee UI","Segoe UI Variable","Segoe UI",system-ui,sans-serif;
+  font-family:var(--font-ui);
+  font-synthesis:none;
+  font-kerning:normal;
+  text-rendering:optimizeLegibility;
+  -webkit-font-smoothing:antialiased;
+  -moz-osx-font-smoothing:grayscale;
+}
+body{font-family:var(--font-ui);font-size:15px;line-height:1.6;letter-spacing:0}
+button,input,select,textarea{font-family:inherit;font-kerning:inherit}
+html[lang="km"]:root,html[lang="km"] body{font-family:var(--font-khmer)}
+html[lang="km"] body{line-height:1.75}
+html[lang="km"] *{letter-spacing:normal}

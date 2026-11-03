@@ -155,7 +155,34 @@ function apply(root=document) {
     }
   }
   document.documentElement.lang = language === "km" ? "km" : "en";
-  document.querySelectorAll("[data-language-switch]").forEach(select => { select.value = language; });
+  const label = language === "km" ? "ខ្មែរ" : "English";
+  document.querySelectorAll("[data-language-current]").forEach(current => {
+    if (current.textContent !== label) current.textContent = label;
+  });
+  document.querySelectorAll("[data-language-option]").forEach(option => {
+    const selected = option.dataset.languageOption === language;
+    option.setAttribute("aria-checked", String(selected));
+    option.classList.toggle("selected", selected);
+  });
+}
+function closeLanguageMenus(restoreFocus=false) {
+  document.querySelectorAll("[data-language-menu]:not([hidden])").forEach(menu => {
+    menu.hidden = true;
+    const trigger = menu.closest("[data-language-picker]")?.querySelector("[data-language-trigger]");
+    trigger?.setAttribute("aria-expanded", "false");
+    if (restoreFocus) trigger?.focus();
+  });
+}
+function openLanguageMenu(trigger) {
+  const picker = trigger.closest("[data-language-picker]");
+  const menu = picker?.querySelector("[data-language-menu]");
+  if (!picker || !menu) return;
+  const opening = menu.hidden;
+  closeLanguageMenus();
+  if (!opening) return;
+  menu.hidden = false;
+  trigger.setAttribute("aria-expanded", "true");
+  menu.querySelector('[data-language-option][aria-checked="true"]')?.focus();
 }
 
 export function setLanguage(value) {
@@ -166,8 +193,32 @@ export function setLanguage(value) {
 }
 export function getLanguage() { return language; }
 window.StudyTrackI18n = { setLanguage, getLanguage };
-document.addEventListener("change", event => {
-  if (event.target.matches("[data-language-switch]")) setLanguage(event.target.value);
+document.addEventListener("click", event => {
+  const option = event.target.closest("[data-language-option]");
+  if (option) {
+    setLanguage(option.dataset.languageOption);
+    closeLanguageMenus(true);
+    return;
+  }
+  const trigger = event.target.closest("[data-language-trigger]");
+  if (trigger) { openLanguageMenu(trigger); return; }
+  if (!event.target.closest("[data-language-picker]")) closeLanguageMenus();
+});
+document.addEventListener("keydown", event => {
+  const menu = event.target.closest("[data-language-menu]");
+  const options = menu ? [...menu.querySelectorAll("[data-language-option]")] : [];
+  const index = options.indexOf(document.activeElement);
+  if (menu && (event.key === "ArrowDown" || event.key === "ArrowUp")) {
+    event.preventDefault();
+    const step = event.key === "ArrowDown" ? 1 : -1;
+    options[(index + step + options.length) % options.length]?.focus();
+  } else if (menu && (event.key === "Home" || event.key === "End")) {
+    event.preventDefault(); options[event.key === "Home" ? 0 : options.length - 1]?.focus();
+  } else if (event.key === "Escape" && menu) {
+    event.preventDefault(); closeLanguageMenus(true);
+  } else if (event.key === "ArrowDown" && event.target.matches("[data-language-trigger]")) {
+    event.preventDefault(); openLanguageMenu(event.target);
+  }
 });
 apply(document);
 new MutationObserver(records => {
