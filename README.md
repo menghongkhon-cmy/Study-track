@@ -15,6 +15,10 @@ On Windows, run `py -m pip install -r requirements.txt` and then `py server.py` 
 
 If sign-up shows `405`, the page is being served without the account API. Start `py server.py` in the project folder and use the `127.0.0.1:8000` address above; do not open `index.html` directly or use a static preview link.
 
+For Render, deploy this repository as a **Python Web Service**, keep the build command `pip install -r requirements.txt`, and use `python server.py` as the start command. The Render health check uses `/api/health`; opening that path on the service domain should return `{"ok":true,"service":"StudyTrack API"}`. If it does not, the browser app and account API are not running together on that service yet.
+
+The interface uses a consistent Angkor Wat background and locally bundled SVG icons. Both are included in the offline app shell.
+
 The server creates `studytrack.sqlite3` in this folder for accounts, study data, classes, assignments, submissions, uploaded files, and classroom messages. Keep that file on persistent storage and back it up securely.
 
 ## Student and teacher accounts
@@ -81,6 +85,10 @@ STUDYTRACK_TELEGRAM_CLIENT_SECRET=...
 
 Set only the providers you plan to offer. Keep all client secrets on the server, never in JavaScript or GitHub. Google and Telegram ID tokens are signature-checked; each provider flow uses state and PKCE. GitHub access is limited to basic profile and verified email (`read:user user:email`). StudyTrack does not store provider access tokens. Install the server dependencies with `pip install -r requirements.txt` before starting the app.
 
+## Install StudyTrack on desktop or phone
+
+StudyTrack can be installed as a web app after it is deployed at an HTTPS address with a valid certificate. Sign in, then use the download icon in the top navigation. Chrome and Edge show the native install prompt when the browser supports it; otherwise, use the browser's **Install app** menu. On Android, use Chrome's **Install app** or **Add to Home screen** menu. On iPhone or iPad, open the site in Safari, tap **Share**, then **Add to Home Screen**. Keep the internet connection on for sign-in and classroom features.
+
 ## Use across devices
 
 The included server is configured for local use. To allow sign-in from other devices, deploy the app and server on a host that those devices can reach, use HTTPS, set `STUDYTRACK_SECURE_COOKIE=1`, and keep the SQLite database on persistent storage. Configure `STUDYTRACK_HOST=0.0.0.0` only when the deployment environment requires it. Do not expose the development server directly to the public internet.
@@ -94,6 +102,12 @@ The included `render.yaml` configures a Python web service in Singapore, HTTPS c
 3. When Render asks for `STUDYTRACK_TEACHER_CODE` and `STUDYTRACK_ADMIN_CODE`, set separate strong private codes. Share the teacher code only with trusted teachers and keep the admin code for the app owner. Students can create accounts without either code.
 4. After the deploy completes, open the public `onrender.com` address shown in the Render dashboard and create an account.
 
+## Prepare an AWS EC2 deployment
+
+The project includes an Ubuntu EC2 deployment guide and starter files under [`deploy/aws/`](deploy/aws/README.md): a systemd service, an Nginx reverse-proxy configuration, and an environment-variable example. The guide keeps the app bound to localhost, enables secure cookies, and stores SQLite data under `/var/lib/studytrack` so that directory can be mounted on persistent EBS storage. Follow the guide and verify the database volume's delete-on-termination setting before creating real accounts.
+
+This is a single-instance setup for testing and small deployments. It does not add failover or a managed database. The current app server is Python's built-in HTTP server behind Nginx; arrange a security review before using it for sensitive student records at scale.
+
 The app stores account data and submissions in the server's SQLite database so users can sign in and share classroom work. The person who owns the hosting account can access the server and its database. Use the account's JSON export for backups; keep a separate copy somewhere safe.
 
 ## Features
@@ -101,11 +115,14 @@ The app stores account data and submissions in the server's SQLite database so u
 - Dashboard, subjects, score tracker, planner calendar, Pomodoro timer, goals, notes, analytics, and achievements.
 - Personal notes use a document-style editor with headings, emphasis, lists, and quote formatting. Saved documents are sanitized before display.
 - Interactive charts and statistics calculated from each signed-in user's records.
-- Light and dark themes, subtle transitions, reduced-motion support, responsive navigation, and empty states.
+- Dark theme by default, with an optional light theme, subtle transitions, reduced-motion support, responsive navigation, and empty states.
+- Switch the interface between English and Khmer from the sign-in screen or top bar; your choice is saved in this browser.
+- Admins can set a shared Angkor Wat or animated aurora background, or upload a GIF/image that is saved in the app database.
 - Profile initials or an uploaded profile picture. Pictures are resized in the browser and stored with the account's app data.
 - Optional profile cover photos and short bios. Profiles can be shared with classmates, with any StudyTrack account, or kept private. When a profile is private or only shared with classmates, other accounts can see only the person's name and role. Emails and academic records are not returned by the profile-view endpoint.
 - JSON backup export/import, confirmed account-data deletion, and an optional local PIN for casual privacy.
 - Teacher, student, and protected admin roles; private class join codes; file/folder submissions; teacher feedback and grades; multi-question class quizzes; private class-member chat; and email-address lookup for chats between StudyTrack accounts.
+- Class join codes include a working one-click copy button. Profile settings use a cover-and-avatar layout and keep the existing sharing controls.
 
 ## Privacy and security
 

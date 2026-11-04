@@ -6,7 +6,7 @@ export const KEYS = {
 
 const defaults = {
   profile: { name: "Student", avatar: "S", photo: "", role: "student" }, subjects: [], scores: [], tasks: [], sessions: [], notes: [], goals: [],
-  achievements: [], settings: { theme: "light", focusMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15, pinEnabled: false, pinHash: "", timer: { mode: "focus", remaining: 1500, running: false, endsAt: null } }
+  achievements: [], settings: { theme: "dark", focusMinutes: 25, shortBreakMinutes: 5, longBreakMinutes: 15, pinEnabled: false, pinHash: "", timer: { mode: "focus", remaining: 1500, running: false, endsAt: null } }
 };
 
 export function read(name) {
@@ -56,7 +56,7 @@ export function noteContentHtml(value = "") { return sanitizeNoteHtml(value) || 
 export function formatDate(value, options = { month: "short", day: "numeric", year: "numeric" }) {
   if (!value) return "—";
   const date = new Date(`${String(value).slice(0, 10)}T12:00:00`);
-  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString(undefined, options);
+  return Number.isNaN(date.getTime()) ? "—" : date.toLocaleDateString(document.documentElement.lang === "km" ? "km-KH" : undefined, options);
 }
 export function percent(obtained, maximum) { return maximum > 0 ? Math.max(0, Math.min(100, (Number(obtained) / Number(maximum)) * 100)) : 0; }
 export function getSettings() {
