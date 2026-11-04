@@ -864,3 +864,78 @@ html[lang="km"] *{letter-spacing:normal}
 @media(max-width:760px){.dashboard-stats .stat-card{min-height:158px;padding:18px}.dashboard-stats .stat-icon{width:40px;height:40px}.dashboard-stats .stat-value{font-size:31px}.classroom-grid{grid-template-columns:1fr;gap:14px}.class-card{min-height:250px;padding:19px}.join-code-box>b{font-size:16px}}
 @media(max-width:420px){.dashboard-stats .stat-card{min-height:145px;padding:15px}.dashboard-stats .stat-top{font-size:10px}.dashboard-stats .stat-icon{width:36px;height:36px}.dashboard-stats .stat-value{font-size:28px}.dashboard-stats .stat-foot{font-size:10px}.join-code-box{grid-template-columns:minmax(0,1fr) auto;gap:9px;padding:11px}.join-code-box>b{font-size:14px;letter-spacing:.08em}.join-code-box .btn.class-copy-code{padding:7px 8px;font-size:10px}}
 @media(prefers-reduced-motion:reduce){.class-card{transition:none!important}}
+
+/* Dashboard welcome panel: clearer hierarchy and a softly animated backdrop. */
+.welcome-card{min-height:286px;padding:38px 40px;border-radius:28px;grid-template-columns:minmax(0,1.2fr) minmax(280px,.8fr);gap:30px;border-color:rgba(161,147,255,.23);background:radial-gradient(ellipse at 82% 48%,rgba(125,98,255,.27),transparent 36%),radial-gradient(ellipse at 24% 110%,rgba(57,186,210,.16),transparent 40%),linear-gradient(118deg,#15243b 0%,#18233d 52%,#202047 100%);box-shadow:0 25px 60px rgba(0,0,0,.23),inset 0 1px 0 rgba(255,255,255,.07)}
+.welcome-card:before{inset:-35%;background:linear-gradient(112deg,transparent 32%,rgba(255,255,255,.035) 48%,transparent 55%);animation:welcomeSheen 13s ease-in-out infinite alternate}
+.welcome-card:after{content:"";position:absolute;inset:0;border-radius:inherit;pointer-events:none;background:linear-gradient(120deg,rgba(255,255,255,.025),transparent 38%);z-index:0}
+.welcome-copy{max-width:690px;z-index:2}
+.welcome-card .eyebrow{display:inline-flex;align-items:center;gap:9px;margin-bottom:13px;padding:8px 12px;border:1px solid rgba(183,167,255,.2);border-radius:999px;background:rgba(139,116,255,.09);font-size:10px;letter-spacing:.13em}
+.welcome-card .eyebrow-spark{color:#6de2e8;font-size:16px}
+.welcome-card h2{max-width:760px;margin:0 0 12px;color:#f5f7ff;font-size:clamp(30px,3.1vw,44px);font-weight:780;letter-spacing:-1.6px;line-height:1.12}
+.welcome-card p{max-width:590px;margin:0;color:#b6c4d8;font-size:14px;line-height:1.75}
+.welcome-actions{gap:15px;margin-top:24px}
+.welcome-actions .btn-primary{min-height:50px;padding:0 19px;border-radius:14px;font-size:13px;box-shadow:0 13px 29px rgba(112,87,234,.34)}
+.hero-link{display:inline-flex;align-items:center;gap:10px;color:#c5d0e2;font-size:13px;font-weight:650}
+.hero-play{width:36px;height:36px;border-color:rgba(172,152,255,.28);background:rgba(123,103,222,.13);color:#c6b8ff}
+.welcome-art{min-height:240px;z-index:1}
+.welcome-orb{width:240px;height:240px;right:auto;top:50%;border-color:rgba(170,154,255,.18);box-shadow:0 0 0 20px rgba(167,139,250,.035),0 0 0 42px rgba(167,139,250,.025);transform:translateY(-50%);animation:welcomeOrbit 28s linear infinite}
+.hero-study-card{width:min(340px,95%);padding:18px 19px 16px;border-radius:21px;border-color:rgba(193,209,238,.25);background:linear-gradient(145deg,rgba(35,49,78,.94),rgba(19,31,53,.96));box-shadow:0 25px 55px rgba(0,0,0,.34),inset 0 1px 0 rgba(255,255,255,.12);transform:rotate(-2.3deg);animation:dashboardCardFloat 7s ease-in-out infinite}
+.hero-study-head{font-size:10px;letter-spacing:.09em}
+.hero-study-head .hero-book-icon{width:40px;height:40px;border-radius:13px}
+.hero-progress-lines{gap:8px;margin:17px 0 16px}
+.hero-progress-lines b,.hero-progress-lines i{height:7px;border-radius:99px}
+.hero-study-foot{padding-top:13px}
+.date-pill{top:21px;right:24px;min-height:37px;padding:8px 12px;border-radius:13px;background:rgba(9,16,30,.34);font-size:11px;backdrop-filter:blur(10px)}
+.light-theme .welcome-card{background:radial-gradient(ellipse at 82% 48%,rgba(125,98,255,.17),transparent 36%),radial-gradient(ellipse at 24% 110%,rgba(57,186,210,.11),transparent 40%),linear-gradient(118deg,#f1efff 0%,#eaf4ff 54%,#eef8ff 100%);border-color:rgba(105,91,202,.17);box-shadow:0 22px 50px rgba(77,87,144,.12)}
+.light-theme .welcome-card h2{color:#1b2741}
+.light-theme .welcome-card p{color:#62718b}
+.light-theme .welcome-card .eyebrow{border-color:rgba(105,91,202,.17);background:rgba(139,116,255,.08)}
+.light-theme .hero-study-card{background:linear-gradient(145deg,rgba(255,255,255,.97),rgba(242,246,255,.98));border-color:rgba(79,92,138,.15);box-shadow:0 23px 48px rgba(72,84,142,.18),inset 0 1px 0 #fff}
+.light-theme .date-pill{color:#52617b;background:rgba(255,255,255,.76);border-color:rgba(66,83,111,.12)}
+
+/* Keep the language popover above the account type controls when it opens. */
+.auth-head-row{position:relative;z-index:30;isolation:isolate;margin-bottom:25px}
+.auth-head-row:has(.language-picker-trigger[aria-expanded="true"]){z-index:90;margin-bottom:30px}
+.auth-language-control{z-index:91}
+.auth-form-inner,.auth-form-panel{overflow:visible}
+.auth-role-picker{position:relative;z-index:1}
+.topbar .language-picker{z-index:25}
+.language-menu{z-index:999;min-width:170px;padding:7px;border-radius:15px}
+.language-menu button{min-height:42px;padding:0 12px;border-radius:10px;font-size:12px}
+.language-menu button svg{width:16px;height:16px}
+
+/* Login motion: staged entrance, slow ambient light and a gentle feature-card float. */
+.auth-panel{box-shadow:0 38px 110px rgba(0,0,0,.42),0 0 0 1px rgba(170,154,255,.08)}
+.auth-visual{background-size:165% 165%;animation:authGradient 18s ease-in-out infinite alternate}
+.auth-visual-content{animation:authVisualReveal .72s .1s both}
+.auth-art-card{animation:loginCardFloat 7s ease-in-out infinite}
+.auth-art-orbit.one{animation:authPulse 9s ease-in-out infinite,loginOrbit 34s linear infinite}
+.auth-art-orbit.two{animation:authPulse 11s ease-in-out -2s infinite,loginOrbit 48s linear infinite reverse}
+.auth-panel .auth-art-star{animation:loginStarFloat 4s ease-in-out infinite!important}
+.auth-form-inner{animation:authFormReveal .65s .08s both}
+.auth-head-row .auth-welcome h2{letter-spacing:-.045em}
+.auth-form>.form-group{animation:authFieldReveal .48s both}
+.auth-form>.form-group:nth-of-type(1){animation-delay:.12s}
+.auth-form>.form-group:nth-of-type(2){animation-delay:.2s}
+.auth-form>.form-group:nth-of-type(3){animation-delay:.28s}
+.auth-form>.form-group:nth-of-type(4){animation-delay:.36s}
+.auth-form>.form-group:nth-of-type(5){animation-delay:.44s}
+.auth-submit{isolation:isolate;box-shadow:0 15px 34px rgba(121,89,237,.34)}
+.auth-submit:after{content:"";position:absolute;z-index:-1;inset:-20% auto -20% -45%;width:34%;transform:skewX(-18deg);background:linear-gradient(90deg,transparent,rgba(255,255,255,.22),transparent);animation:authButtonShine 6.5s ease-in-out 1.2s infinite}
+.auth-role-picker{animation:authRoleReveal .55s .16s both}
+@keyframes welcomeSheen{0%{transform:translateX(-7%)}100%{transform:translateX(7%)}}
+@keyframes welcomeOrbit{to{rotate:360deg}}
+@keyframes dashboardCardFloat{0%,100%{transform:translateY(0) rotate(-2.3deg)}50%{transform:translateY(-9px) rotate(-1deg)}}
+@keyframes authVisualReveal{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:translateY(0)}}
+@keyframes authFormReveal{from{opacity:0;transform:translateY(10px)}to{opacity:1;transform:translateY(0)}}
+@keyframes authFieldReveal{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@keyframes loginCardFloat{0%,100%{transform:translateY(0) rotate(-5deg)}50%{transform:translateY(-8px) rotate(-2.5deg)}}
+@keyframes loginOrbit{to{rotate:360deg}}
+@keyframes loginStarFloat{0%,100%{transform:translateY(0) rotate(0);opacity:.65}50%{transform:translateY(-9px) rotate(18deg);opacity:1}}
+@keyframes authButtonShine{0%,72%,100%{left:-45%}38%{left:115%}}
+@keyframes authRoleReveal{from{opacity:0;transform:translateY(9px)}to{opacity:1;transform:translateY(0)}}
+@media(max-width:1080px){.welcome-card{min-height:250px;padding:31px 30px;grid-template-columns:minmax(0,1.1fr) minmax(240px,.9fr)}.hero-study-card{width:min(300px,94%)}}
+@media(max-width:760px){.welcome-card{min-height:0;padding:28px 22px;grid-template-columns:1fr;gap:14px}.welcome-card h2{max-width:100%;font-size:clamp(27px,7vw,36px)}.welcome-card p{font-size:13px}.welcome-art{display:grid;min-height:195px}.hero-study-card{width:min(300px,90%)}.date-pill{top:12px;right:12px;max-width:48%;font-size:9px}.auth-head-row{z-index:30;margin-bottom:24px}.auth-head-row:has(.language-picker-trigger[aria-expanded="true"]){margin-bottom:30px}.auth-panel .auth-visual-content{animation:authVisualReveal .6s .08s both}}
+@media(max-width:420px){.welcome-card{padding:24px 17px}.welcome-actions{align-items:flex-start;flex-direction:column;gap:11px}.welcome-art{min-height:178px}.hero-study-card{width:min(270px,92%)}.auth-head-row:has(.language-picker-trigger[aria-expanded="true"]){margin-bottom:35px}.language-menu{min-width:160px}}
+@media(prefers-reduced-motion:reduce){.welcome-card:before,.welcome-orb,.hero-study-card,.auth-visual,.auth-visual-content,.auth-art-card,.auth-art-orbit,.auth-art-star,.auth-form-inner,.auth-form>.form-group,.auth-submit:after,.auth-role-picker{animation:none!important}}
