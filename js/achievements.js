@@ -15,7 +15,7 @@ export function renderAchievements(){
   const earned=syncAchievements(),unlocked=earned.filter(a=>a.unlocked).length;
   const cards=definitions.map(d=>{
     const record=earned.find(a=>a.id===d.id),has=Boolean(record?.unlocked);
-    const unlockedLabel=has?`Unlocked${record.unlockedAt?` · ${new Date(record.unlockedAt).toLocaleDateString(document.documentElement.lang === "km" ? "km-KH" : undefined,{month:"short",day:"numeric"})}`:""}`:"Locked · keep going";
+    const unlockedLabel=has?`Unlocked${record.unlockedAt?` · ${new Date(record.unlockedAt).toLocaleDateString(undefined,{month:"short",day:"numeric"})}`:""}`:"Locked · keep going";
     return `<article class="achievement-card ${has?"":"locked"}"><div class="achievement-icon">${d.icon}</div><div><h3>${escapeHtml(d.name)}</h3><p>${escapeHtml(d.description)}</p><span class="unlocked-pill" style="color:${has?"var(--green)":"var(--muted)"}">${unlockedLabel}</span></div></article>`;
   }).join("");
   return `<div class="page-heading"><div><div class="eyebrow">CELEBRATE YOUR PROGRESS</div><h1>Achievements</h1><p>Small wins are worth recognizing. Your badges are based on activity saved in this browser.</p></div><div class="heading-actions"><span class="local-indicator"><i></i> ${unlocked} / ${definitions.length} unlocked</span></div></div><div class="achievement-grid">${cards}</div>`;

@@ -164,9 +164,6 @@ def init_db() -> None:
           target_id TEXT REFERENCES users(id) ON DELETE SET NULL,
           action TEXT NOT NULL, created_at TEXT NOT NULL
         );
-        CREATE TABLE IF NOT EXISTS app_settings (
-          setting_key TEXT PRIMARY KEY, setting_json TEXT NOT NULL, updated_at TEXT NOT NULL
-        );
         CREATE INDEX IF NOT EXISTS idx_sessions_user_expiry ON sessions(user_id,expires_at);
         CREATE INDEX IF NOT EXISTS idx_oauth_states_expiry ON oauth_states(expires_at);
         CREATE INDEX IF NOT EXISTS idx_memberships_user ON class_memberships(user_id);
@@ -194,8 +191,6 @@ def init_db() -> None:
             db.execute("ALTER TABLE quiz_attempts ADD COLUMN answers_json TEXT NOT NULL DEFAULT '[]'")
         db.execute("DELETE FROM sessions WHERE expires_at < ?", (int(time.time()),))
         db.execute("DELETE FROM oauth_states WHERE expires_at < ?", (int(time.time()),))
-        db.execute("INSERT OR IGNORE INTO app_settings(setting_key,setting_json,updated_at) VALUES('appearance',?,?)",
-                   (json.dumps({"background": "angkor"}), utc_now()))
 
 
 def utc_now() -> str:
@@ -677,25 +672,6 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                 else:
                     self.oauth_start(provider)
                 return
-            if path == "/api/health":
-                # Render should verify that the Python API and its database are
-                # reachable, rather than treating a static homepage as healthy.
-                with connect_db() as db:
-                    db.execute("SELECT 1").fetchone()
-                self.send_json({"ok": True, "service": "StudyTrack API"})
-                return
-            if path == "/api/app/settings":
-                with connect_db() as db:
-                    row = db.execute("SELECT setting_json FROM app_settings WHERE setting_key='appearance'").fetchone()
-                try:
-                    appearance = json.loads(row["setting_json"]) if row else {"background": "angkor"}
-                except (TypeError, json.JSONDecodeError):
-                    appearance = {"background": "angkor"}
-                background = appearance.get("background", "angkor") if isinstance(appearance, dict) else "angkor"
-                if background not in ("angkor", "aurora") and not (isinstance(background, str) and len(background) <= 2_850_000 and re.fullmatch(r"data:image/(?:gif|png|jpeg|webp);base64,[A-Za-z0-9+/=]+", background)):
-                    background = "angkor"
-                self.send_json({"background": background})
-                return
             if path == "/api/session":
                 user = self.session()
                 self.send_json({"user": {k: user[k] for k in ("id","email","name","role")} if user else None,
@@ -867,44 +843,6 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
     def do_PUT(self) -> None:
         path = unquote(urlsplit(self.path).path)
         try:
-            if path == "/api/admin/settings":
-                user = self.require_session(csrf=True)
-                if not user:
-                    return
-                if user.get("role") != "admin":
-                    self.send_error_json(HTTPStatus.FORBIDDEN, "Admin access is required.")
-                    return
-                body = self.read_json()
-                background = body.get("background")
-                if background in ("angkor", "aurora"):
-                    safe_background = background
-                elif isinstance(background, str):
-                    match = re.fullmatch(r"data:image/(gif|png|jpeg|webp);base64,([A-Za-z0-9+/]+={0,2})", background)
-                    if not match:
-                        raise ValueError("Choose a valid GIF, PNG, JPG, or WebP background.")
-                    try:
-                        image = b64decode(match.group(2), validate=True)
-                    except (ValueError, binascii.Error):
-                        raise ValueError("The uploaded background image is not valid.")
-                    if not image or len(image) > 2 * 1024 * 1024:
-                        raise ValueError("Choose a background image under 2 MB.")
-                    mime = match.group(1)
-                    valid_image = {
-                        "gif": image[:6] in (b"GIF87a", b"GIF89a"),
-                        "png": image.startswith(b"\x89PNG\r\n\x1a\n"),
-                        "jpeg": image.startswith(b"\xff\xd8\xff"),
-                        "webp": image.startswith(b"RIFF") and image[8:12] == b"WEBP",
-                    }[mime]
-                    if not valid_image:
-                        raise ValueError("The uploaded file does not match its image type.")
-                    safe_background = background
-                else:
-                    raise ValueError("Choose Angkor Wat, animated aurora, or upload an image.")
-                with connect_db() as db:
-                    db.execute("INSERT INTO app_settings(setting_key,setting_json,updated_at) VALUES('appearance',?,?) ON CONFLICT(setting_key) DO UPDATE SET setting_json=excluded.setting_json,updated_at=excluded.updated_at",
-                               (json.dumps({"background": safe_background}), utc_now()))
-                self.send_json({"background": safe_background})
-                return
             if path == "/api/data":
                 user = self.require_session(csrf=True)
                 if user:
@@ -1056,7 +994,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         data.setdefault("profile", {"name":user["name"],"avatar":user["name"][:1].upper(),"photo":"","coverPhoto":"","bio":"","visibility":"classmates","role":user["role"]})
         data.setdefault("subjects",[]);data.setdefault("scores",[]);data.setdefault("tasks",[]);data.setdefault("sessions",[])
         data.setdefault("notes",[]);data.setdefault("goals",[]);data.setdefault("achievements",[])
-        data.setdefault("settings", {"theme":"dark","focusMinutes":25,"shortBreakMinutes":5,"longBreakMinutes":15,"pinEnabled":False,"pinHash":"","timer":{"mode":"focus","remaining":1500,"running":False,"endsAt":None}})
+        data.setdefault("settings", {"theme":"light","focusMinutes":25,"shortBreakMinutes":5,"longBreakMinutes":15,"pinEnabled":False,"pinHash":"","timer":{"mode":"focus","remaining":1500,"running":False,"endsAt":None}})
         if isinstance(data["profile"],dict):
             data["profile"]={**data["profile"],"name":user["name"],"role":user["role"]}
         self.send_json({"data":data})

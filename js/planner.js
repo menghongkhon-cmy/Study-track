@@ -101,7 +101,7 @@ export function renderPlanner() {
   const tasks = allTasks
     .filter(task => filter === "all" || (filter === "pending" && !task.completed) || (filter === "completed" && task.completed))
     .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
-  const month = cursor.toLocaleDateString(document.documentElement.lang === "km" ? "km-KH" : undefined, { month: "long", year: "numeric" });
+  const month = cursor.toLocaleDateString(undefined, { month: "long", year: "numeric" });
   const today = todayISO();
   const selected = selectedDate || today;
   const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);

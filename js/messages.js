@@ -1,6 +1,6 @@
 import { escapeHtml } from "./storage.js";
 
-function messageTime(value){const date=new Date(value);return Number.isNaN(date.getTime())?"":date.toLocaleString(document.documentElement.lang === "km" ? "km-KH" : undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});}
+function messageTime(value){const date=new Date(value);return Number.isNaN(date.getTime())?"":date.toLocaleString(undefined,{month:"short",day:"numeric",hour:"numeric",minute:"2-digit"});}
 
 export function renderMessages(){
   return `<div class="page-heading"><div><div class="eyebrow">YOUR PRIVATE INBOX</div><h1>Messages</h1><p>Find a StudyTrack account by email and start a private chat.</p></div></div>
