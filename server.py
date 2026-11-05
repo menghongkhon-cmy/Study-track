@@ -40,6 +40,7 @@ COOKIE_NAME = "studytrack_session"
 PBKDF2_ROUNDS = 310_000
 MAX_BODY = 20 * 1024 * 1024
 MAX_SUBMISSION_FILE = 8 * 1024 * 1024
+MAX_DIRECT_ATTACHMENT = 8 * 1024 * 1024
 MAX_SUBMISSION_TOTAL = 12 * 1024 * 1024
 MAX_SUBMISSION_FILES = 20
 MAX_QUIZ_QUESTIONS = 100
@@ -201,6 +202,11 @@ def init_db() -> None:
         attempt_columns={row[1] for row in db.execute("PRAGMA table_info(quiz_attempts)").fetchall()}
         if "answers_json" not in attempt_columns:
             db.execute("ALTER TABLE quiz_attempts ADD COLUMN answers_json TEXT NOT NULL DEFAULT '[]'")
+        direct_message_columns={row[1] for row in db.execute("PRAGMA table_info(direct_messages)").fetchall()}
+        for column, declaration in (("attachment_name", "TEXT"), ("attachment_type", "TEXT"),
+                                    ("attachment_size", "INTEGER"), ("attachment_data", "BLOB")):
+            if column not in direct_message_columns:
+                db.execute(f"ALTER TABLE direct_messages ADD COLUMN {column} {declaration}")
         db.execute("DELETE FROM sessions WHERE expires_at < ?", (int(time.time()),))
         db.execute("DELETE FROM oauth_states WHERE expires_at < ?", (int(time.time()),))
         db.execute("DELETE FROM password_reset_tokens WHERE expires_at < ?", (int(time.time()),))
@@ -763,6 +769,13 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                 user = self.require_session()
                 if user:
                     self.get_admin_overview(user)
+                return
+            match = re.fullmatch(r"/api/messages/([0-9]+)/attachment", path)
+            if match:
+                user = self.require_session()
+                if user:
+                    inline=parse_qs(urlsplit(self.path).query).get("view", [""])[0] == "1"
+                    self.download_direct_message_attachment(user, int(match.group(1)), inline)
                 return
             if path == "/api/messages":
                 user = self.require_session()
@@ -1729,6 +1742,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                 if not peer or peer["id"] == user["id"]:
                     self.send_error_json(HTTPStatus.NOT_FOUND, "That account could not be found."); return
                 rows = db.execute("""SELECT m.id,m.sender_id,m.recipient_id,m.body,m.created_at,
+                                    m.attachment_name,m.attachment_type,m.attachment_size,
                                     s.name AS sender_name,s.role AS sender_role,s.is_admin AS sender_admin
                                     FROM direct_messages m JOIN users s ON s.id=m.sender_id
                                     WHERE (m.sender_id=? AND m.recipient_id=?) OR (m.sender_id=? AND m.recipient_id=?)
@@ -1740,6 +1754,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                             for row in reversed(rows)]
                 self.send_json({"peer": peer_payload, "messages": messages}); return
             rows = db.execute("""SELECT m.id,m.sender_id,m.recipient_id,m.body,m.created_at,
+                                m.attachment_name,m.attachment_type,m.attachment_size,
                                 s.name AS sender_name,s.role AS sender_role,s.is_admin AS sender_admin,
                                 r.name AS recipient_name,r.role AS recipient_role,r.is_admin AS recipient_admin
                                 FROM direct_messages m JOIN users s ON s.id=m.sender_id
@@ -1757,9 +1772,10 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
             peer_name = row["sender_name"] if peer_is_sender else row["recipient_name"]
             peer_role = row["sender_role"] if peer_is_sender else row["recipient_role"]
             peer_admin = row["sender_admin"] if peer_is_sender else row["recipient_admin"]
+            last_message = row["body"] or ("📷 Photo" if str(row["attachment_type"] or "").startswith("image/") else "📎 Attachment")
             threads.append({"peer_id": peer_id_value, "peer_name": peer_name,
                             "peer_role": "admin" if peer_admin else peer_role,
-                            "last_message": row["body"], "created_at": row["created_at"]})
+                            "last_message": last_message, "created_at": row["created_at"]})
         self.send_json({"threads": threads})
 
     def create_direct_message(self, user: dict) -> None:
@@ -1767,8 +1783,41 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         recipient_email = str(body.get("recipient_email", "")).strip().lower()
         recipient_id = str(body.get("recipient_id", "")).strip()
         message = str(body.get("body", "")).strip()
-        if not message or len(message) > 2000:
-            raise ValueError("Messages must contain 1 to 2,000 characters.")
+        if len(message) > 2000:
+            raise ValueError("Messages can contain up to 2,000 characters.")
+        attachment = body.get("attachment")
+        prepared_attachment = None
+        if attachment is not None:
+            if not isinstance(attachment, dict):
+                raise ValueError("The attachment could not be read.")
+            raw_name = str(attachment.get("name", "")).replace("\\", "/").split("/")[-1]
+            filename = re.sub(r"[\x00-\x1f\x7f]", "", raw_name).strip()[:180]
+            if not filename or filename in {".", ".."}:
+                raise ValueError("The attachment needs a valid file name.")
+            encoded = attachment.get("data")
+            if not isinstance(encoded, str):
+                raise ValueError("The attachment could not be read.")
+            try:
+                raw_data = b64decode(encoded, validate=True)
+            except (binascii.Error, ValueError):
+                raise ValueError("The attachment is not valid file data.")
+            if not raw_data:
+                raise ValueError("The attachment is empty.")
+            if len(raw_data) > MAX_DIRECT_ATTACHMENT:
+                raise ValueError("Chat files must be no larger than 8 MB.")
+            if raw_data.startswith(b"\x89PNG\r\n\x1a\n"):
+                content_type = "image/png"
+            elif raw_data.startswith(b"\xff\xd8\xff"):
+                content_type = "image/jpeg"
+            elif raw_data.startswith((b"GIF87a", b"GIF89a")):
+                content_type = "image/gif"
+            elif len(raw_data) >= 12 and raw_data[:4] == b"RIFF" and raw_data[8:12] == b"WEBP":
+                content_type = "image/webp"
+            else:
+                content_type = "application/octet-stream"
+            prepared_attachment = (filename, content_type, len(raw_data), raw_data)
+        if not message and not prepared_attachment:
+            raise ValueError("Write a message or attach a file or picture.")
         if not recipient_id and (len(recipient_email) > 254 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", recipient_email)):
             raise ValueError("Enter the recipient's full email address.")
         with connect_db() as db:
@@ -1776,11 +1825,40 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                                    (recipient_id or recipient_email,)).fetchone()
             if not recipient or recipient["id"] == user["id"]:
                 self.send_error_json(HTTPStatus.NOT_FOUND, "We couldn't find another active account with that email."); return
-            cursor = db.execute("INSERT INTO direct_messages(sender_id,recipient_id,body,created_at) VALUES(?,?,?,?)",
-                                (user["id"], recipient["id"], message, utc_now()))
+            attachment_values = prepared_attachment or (None, None, None, None)
+            cursor = db.execute("""INSERT INTO direct_messages(sender_id,recipient_id,body,created_at,
+                                      attachment_name,attachment_type,attachment_size,attachment_data)
+                                  VALUES(?,?,?,?,?,?,?,?)""",
+                                (user["id"], recipient["id"], message, utc_now(), *attachment_values[:3],
+                                 sqlite3.Binary(attachment_values[3]) if prepared_attachment else None))
             message_id = cursor.lastrowid
             log_activity(db, user["id"], "Sent a private email chat message", recipient["id"])
         self.send_json({"ok": True, "id": message_id}, HTTPStatus.CREATED)
+
+    def download_direct_message_attachment(self, user: dict, message_id: int, inline: bool = False) -> None:
+        with connect_db() as db:
+            row = db.execute("""SELECT sender_id,recipient_id,attachment_name,attachment_type,attachment_data
+                                FROM direct_messages WHERE id=? AND attachment_data IS NOT NULL""",
+                             (message_id,)).fetchone()
+            if not row:
+                self.send_error_json(HTTPStatus.NOT_FOUND, "Chat attachment not found."); return
+            if user["id"] not in (row["sender_id"], row["recipient_id"]):
+                self.send_error_json(HTTPStatus.FORBIDDEN, "You do not have access to this chat attachment."); return
+            data = bytes(row["attachment_data"])
+            filename = row["attachment_name"]
+            content_type = row["attachment_type"] or "application/octet-stream"
+        safe_inline = inline and content_type in {"image/png", "image/jpeg", "image/gif", "image/webp"}
+        fallback = re.sub(r"[^A-Za-z0-9._-]", "_", filename) or "chat-attachment"
+        disposition = "inline" if safe_inline else "attachment"
+        header = f"{disposition}; filename=\"{fallback}\"; filename*=UTF-8''{quote(filename, safe='')}"
+        self.send_response(HTTPStatus.OK)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Content-Length", str(len(data)))
+        self.send_header("Content-Disposition", header)
+        self.send_header("Cache-Control", "private, no-store")
+        self.send_header("Content-Security-Policy", "default-src 'none'; sandbox")
+        self.end_headers()
+        self.wfile.write(data)
 
     def _class_chat_peer(self,db,user:dict,class_id:str,recipient_id:str):
         classroom=db.execute("SELECT teacher_id FROM classrooms WHERE id=?",(class_id,)).fetchone()

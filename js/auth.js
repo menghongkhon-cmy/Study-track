@@ -50,7 +50,7 @@ export function classesApi(){return apiRequest("/api/classes");}
 export function studentProfile(profileId){return apiRequest(`/api/profiles/${encodeURIComponent(profileId)}`);}
 export function peopleLookup(email){return apiRequest(`/api/people/lookup?email=${encodeURIComponent(email)}`);}
 export function directMessages(peerId=""){return apiRequest(`/api/messages${peerId?`?with=${encodeURIComponent(peerId)}`:""}`);}
-export function sendDirectMessage(recipientId,body){return apiRequest("/api/messages",{method:"POST",body:{recipient_id:recipientId,body},authWrite:true});}
+export function sendDirectMessage(recipientId,body,attachment=null){return apiRequest("/api/messages",{method:"POST",body:{recipient_id:recipientId,body,attachment},authWrite:true});}
 export function adminOverview(){return apiRequest("/api/admin/overview");}
 export function manageAccount(userId,changes){return apiRequest(`/api/admin/users/${encodeURIComponent(userId)}`,{method:"PATCH",body:changes,authWrite:true});}
 export function linkedOAuthProviders(){return apiRequest("/api/auth/providers");}
