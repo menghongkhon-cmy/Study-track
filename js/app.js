@@ -4,7 +4,7 @@ import { KEYS, read, write, id, todayISO, escapeHtml, formatDate, percent, getSe
 import { renderDashboard, drawDashboardCharts } from "./dashboard.js";
 import { renderSubjects } from "./subjects.js";
 import { renderScores, setScoreFilter, resetScoreFilters } from "./scores.js";
-import { renderPlanner, setPlannerFilter, movePlannerMonth, selectPlannerDate, goToPlannerToday, loadPlannerClassEvents, setPlannerClassEvents } from "./planner.js";
+import { renderPlanner, setPlannerFilter, movePlannerMonth, selectPlannerDate, goToPlannerToday, setPlannerView, loadPlannerClassEvents, setPlannerClassEvents } from "./planner.js";
 import { renderTimer, startTimer, pauseTimer, resetTimer, setTimerMode, saveDurations, resumeTimerIfNeeded } from "./timer.js";
 import { renderGoals } from "./goals.js";
 import { renderNotes, setNoteSearch } from "./notes.js";
@@ -16,7 +16,7 @@ import { renderMessages, renderDirectThreads, renderDirectConversation, renderDi
 import { renderAdminShell, renderAdminOverview } from "./admin.js";
 
 const view=document.getElementById("page-view"),modalRoot=document.getElementById("modal-root"),sidebar=document.getElementById("sidebar"),authRoot=document.getElementById("auth-root"),appShell=document.getElementById("app-shell");
-let currentPage="dashboard",lastPage="dashboard",submissionFiles=[],directPeer=null,directPollTimer=null,adminSearch="",adminData=null,adminBackground="angkor";
+let currentPage="dashboard",lastPage="dashboard",submissionFiles=[],directPeer=null,directPollTimer=null,adminSearch="",adminData=null,adminBackground="angkor",arrivalWelcomeTimer=null;
 const titles={dashboard:"Dashboard",subjects:"Subjects",scores:"Score tracker",planner:"Study planner",timer:"Pomodoro timer",goals:"Study goals",notes:"Personal notes",analytics:"Analytics",achievements:"Achievements",classroom:"Classroom",messages:"Messages",admin:"Admin console",settings:"Settings & privacy"};
 const renderers={dashboard:renderDashboard,subjects:renderSubjects,scores:renderScores,planner:renderPlanner,timer:renderTimer,goals:renderGoals,notes:renderNotes,analytics:renderAnalytics,achievements:renderAchievements,classroom:()=>"",messages:renderMessages,admin:renderAdminShell,settings:renderSettings};
 
@@ -101,6 +101,7 @@ document.addEventListener("click",event=>{
     case "planner-month":movePlannerMonth(Number(actionElement.dataset.delta));refresh();break;
     case "planner-select-date":selectPlannerDate(actionElement.dataset.date);refresh();break;
     case "planner-today":goToPlannerToday();refresh();break;
+    case "planner-view":setPlannerView(actionElement.dataset.view);refresh();break;
     case "planner-open-class":selectClass(actionElement.dataset.classId);navigate("classroom");break;
     case "add-goal":openGoalForm();break;
     case "edit-goal":openGoalForm(idValue);break;
@@ -282,7 +283,7 @@ function renderAuthScreen(mode="login",role="student",error="",draft={}){
     <button type="button" role="menuitemradio" data-language-option="en" aria-checked="true"><span>English</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></button>
     <button type="button" role="menuitemradio" data-language-option="km" aria-checked="false"><span>ខ្មែរ</span><svg viewBox="0 0 24 24" aria-hidden="true"><path d="m5 12 4 4L19 6"/></svg></button>
   </div>
-</div></div><div class="auth-role-picker" role="group" aria-label="Choose account type"><button type="button" data-auth-role="student" class="${role==="student"?"active":""}">${iconMarkup("student")}Student</button><button type="button" data-auth-role="teacher" class="${role==="teacher"?"active":""}">${iconMarkup("teacher")}Teacher</button><button type="button" data-auth-role="admin" class="${admin?"active":""}">${iconMarkup("settings")}Admin</button></div><form id="auth-form" data-mode="${mode}" class="auth-form">${registering?`<div class="form-group"><label for="auth-name">Full name</label><input class="field" id="auth-name" name="name" autocomplete="name" maxlength="60" required placeholder="Your name" value="${escapeHtml(draft.name||"")}"></div>`:""}<div class="form-group"><label for="auth-email">Email address</label><input class="field" id="auth-email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com" value="${escapeHtml(draft.email||"")}"></div><div class="form-group"><label for="auth-password">Password</label><input class="field" id="auth-password" name="password" type="password" autocomplete="${registering?"new-password":"current-password"}" minlength="10" maxlength="128" required placeholder="At least 10 characters">${registering?`<span class="help-text">Use at least 10 characters.</span>`:""}</div>${!registering?`<div class="auth-forgot-row"><button type="button" class="auth-forgot-link" data-auth-mode="forgot">Forgot password?</button></div>`:""}${registering&&teacher?`<div class="form-group"><label for="teacher-code">Teacher access code</label><input class="field" id="teacher-code" name="teacher_code" type="password" autocomplete="off" required placeholder="Provided by your app owner"><span class="help-text">This code protects teacher tools from public registration.</span></div>`:""}${registering&&admin?`<div class="form-group"><label for="admin-code">Admin access code</label><input class="field" id="admin-code" name="admin_code" type="password" autocomplete="off" required placeholder="Private code from the app owner"><span class="help-text">Admin registration is protected by the server owner.</span></div>`:""}<input type="hidden" name="role" value="${role}"><div class="auth-error ${error?"show":""}" role="alert">${error?`<span class="auth-error-icon" aria-hidden="true">!</span><span class="auth-error-message">${escapeHtml(error)}</span>${registering&&/already exists/i.test(error)?`<button type="button" class="auth-error-action" data-auth-mode="login">Sign in to this account</button>`:""}`:""}</div><button class="btn btn-primary auth-submit" type="submit">${registering?`Create ${admin?"admin":teacher?"teacher":"student"} account`:`Sign in as ${admin?"admin":teacher?"teacher":"student"}`} <span>→</span></button></form><div class="auth-switch">${registering?`Already have an account? <button type="button" data-auth-mode="login">Sign in</button>`:`New to StudyTrack? <button type="button" data-auth-mode="register">Create account</button>`}</div>${renderOAuthButtons()}<div class="auth-bottom"><button type="button" class="auth-about-link" data-action="about-modal">About this app</button><span><i></i> Your data syncs to your account</span></div><p class="auth-security-note">Use StudyTrack over HTTPS when it is deployed online. Your account is separate from your browser profile.</p></div></section></div></div>`;
+</div></div><div class="auth-role-picker" role="group" aria-label="Choose account type"><button type="button" data-auth-role="student" class="${role==="student"?"active":""}">${iconMarkup("student")}Student</button><button type="button" data-auth-role="teacher" class="${role==="teacher"?"active":""}">${iconMarkup("teacher")}Teacher</button><button type="button" data-auth-role="admin" class="${admin?"active":""}">${iconMarkup("settings")}Admin</button></div><form id="auth-form" data-mode="${mode}" class="auth-form">${registering?`<div class="form-group"><label for="auth-name">Full name</label><input class="field" id="auth-name" name="name" autocomplete="name" maxlength="60" required placeholder="Your name" value="${escapeHtml(draft.name||"")}"></div>`:""}<div class="form-group"><label for="auth-email">Email address</label><input class="field" id="auth-email" name="email" type="email" autocomplete="email" maxlength="254" required placeholder="you@example.com" value="${escapeHtml(draft.email||"")}"></div><div class="form-group"><label for="auth-password">Password</label><input class="field" id="auth-password" name="password" type="password" autocomplete="${registering?"new-password":"current-password"}" minlength="10" maxlength="128" required placeholder="At least 10 characters">${registering?`<span class="help-text">Use at least 10 characters.</span>`:""}</div>${!registering?`<div class="auth-forgot-row"><button type="button" class="auth-forgot-link" data-auth-mode="forgot">Forgot password? Reset it</button></div>`:""}${registering&&teacher?`<div class="form-group"><label for="teacher-code">Teacher access code</label><input class="field" id="teacher-code" name="teacher_code" type="password" autocomplete="off" required placeholder="Provided by your app owner"><span class="help-text">This code protects teacher tools from public registration.</span></div>`:""}${registering&&admin?`<div class="form-group"><label for="admin-code">Admin access code</label><input class="field" id="admin-code" name="admin_code" type="password" autocomplete="off" required placeholder="Private code from the app owner"><span class="help-text">Admin registration is protected by the server owner.</span></div>`:""}<input type="hidden" name="role" value="${role}"><div class="auth-error ${error?"show":""}" role="alert">${error?`<span class="auth-error-icon" aria-hidden="true">!</span><span class="auth-error-message">${escapeHtml(error)}</span>${registering&&/already exists/i.test(error)?`<button type="button" class="auth-error-action" data-auth-mode="login">Sign in to this account</button>`:""}`:""}</div><button class="btn btn-primary auth-submit" type="submit">${registering?`Create ${admin?"admin":teacher?"teacher":"student"} account`:`Sign in as ${admin?"admin":teacher?"teacher":"student"}`} <span>→</span></button></form><div class="auth-switch">${registering?`Already have an account? <button type="button" data-auth-mode="login">Sign in</button>`:`New to StudyTrack? <button type="button" data-auth-mode="register">Create account</button>`}</div>${renderOAuthButtons()}<div class="auth-bottom"><button type="button" class="auth-about-link" data-action="about-modal">About this app</button><span><i></i> Your data syncs to your account</span></div><p class="auth-security-note">Use StudyTrack over HTTPS when it is deployed online. Your account is separate from your browser profile.</p></div></section></div></div>`;
   // Do not pop the mobile keyboard over the sign-in screen on page load.
   if(!window.matchMedia("(max-width: 760px)").matches&&!window.matchMedia("(pointer: coarse)").matches)authRoot.querySelector("#auth-email")?.focus();
 }
@@ -313,13 +314,13 @@ async function handleAuthSubmit(event){
   }
   const localSnapshot=allData(),payload={email,password,role:String(form.get("role")||"student")};
   if(mode==="register"){payload.name=String(form.get("name")||"").trim();payload.teacher_code=String(form.get("teacher_code")||"");payload.admin_code=String(form.get("admin_code")||"");}
-  try{const response=await authenticate(mode,payload);await activateAccount(response,localSnapshot,mode==="register");}
+  try{const response=await authenticate(mode,payload);await activateAccount(response,localSnapshot,mode==="register",true);}
   catch(error){if(authActive()){try{await logout();}catch{clearSession();}}renderAuthScreen(mode,payload.role,error.message||"Could not sign in. Try again.",{name:payload.name||"",email:payload.email});}
 }
 
 function containsStudyRecords(data){return ["subjects","scores","tasks","sessions","notes","goals"].some(key=>Array.isArray(data?.[key])&&data[key].length>0);}
 function remoteHasRecords(data){return containsStudyRecords(data);}
-async function activateAccount(session,localSnapshot,isNew){
+async function activateAccount(session,localSnapshot,isNew,showWelcome=false){
   authRoot.innerHTML=`<div class="auth-loading"><span class="loading-orbit"></span><b>Setting up your private workspace…</b></div>`;
   const user=session.user,remote=await getRemoteData(),sameAccount=localStorage.getItem("studytrack_account_id")===user.id;
   const mayMigrate=user.role!=="admin"&&containsStudyRecords(localSnapshot)&&!remoteHasRecords(remote)&&(!sameAccount||isNew);
@@ -329,7 +330,18 @@ async function activateAccount(session,localSnapshot,isNew){
   else replaceDataFromServer(remote);
   localStorage.setItem("studytrack_account_id",user.id);
   const profile=read("profile");if(profile.role!==user.role||!profile.name){write("profile",{...profile,name:user.name,role:user.role});}
-  authRoot.classList.add("hidden");authRoot.innerHTML="";appShell.classList.remove("hidden");syncTheme();syncProfileChrome();setSyncStatus(true);navigate(user.role==="admin"?"admin":"dashboard");if(getSettings().pinEnabled)renderLock();
+  authRoot.classList.add("hidden");authRoot.innerHTML="";appShell.classList.remove("hidden");syncTheme();syncProfileChrome();setSyncStatus(true);navigate(user.role==="admin"?"admin":"dashboard");if(getSettings().pinEnabled)renderLock();else if(showWelcome)showArrivalWelcome(user,isNew);
+}
+
+function showArrivalWelcome(user,isNew){
+  const region=document.getElementById("toast-region");if(!region)return;
+  if(arrivalWelcomeTimer)clearTimeout(arrivalWelcomeTimer);
+  region.querySelector(".arrival-welcome")?.remove();
+  const name=String(user?.name||"there").trim().split(/\s+/)[0]||"there";
+  const toast=document.createElement("div");toast.className="arrival-welcome";toast.setAttribute("role","status");
+  toast.innerHTML=`<span class="arrival-welcome-mark" aria-hidden="true">✦</span><span><b>${isNew?"Welcome to StudyTrack":"Welcome back"}, ${escapeHtml(name)}!</b><small>Your study space is ready.</small></span>`;
+  region.append(toast);requestAnimationFrame(()=>toast.classList.add("visible"));
+  arrivalWelcomeTimer=setTimeout(()=>{toast.classList.remove("visible");setTimeout(()=>toast.remove(),320);},3400);
 }
 
 function oauthMessage(code,provider=""){

@@ -6,14 +6,26 @@ cursor.setDate(1);
 let filter = "all";
 let selectedDate = "";
 let classEvents = [];
+let calendarView = "month";
 
 export function setPlannerFilter(value) {
   filter = value;
 }
 
 export function movePlannerMonth(delta) {
-  cursor.setMonth(cursor.getMonth() + delta);
+  if (calendarView === "week") {
+    const anchor = dateFromKey(selectedDate || todayISO());
+    anchor.setDate(anchor.getDate() + Number(delta) * 7);
+    selectedDate = dateKey(anchor);
+    cursor = new Date(anchor.getFullYear(), anchor.getMonth(), 1);
+    return;
+  }
+  cursor.setMonth(cursor.getMonth() + Number(delta));
   selectedDate = `${cursor.getFullYear()}-${String(cursor.getMonth() + 1).padStart(2, "0")}-01`;
+}
+
+export function setPlannerView(value) {
+  if (["month", "week", "agenda"].includes(value)) calendarView = value;
 }
 
 export function selectPlannerDate(value) {
@@ -101,42 +113,15 @@ export function renderPlanner() {
   const tasks = allTasks
     .filter(task => filter === "all" || (filter === "pending" && !task.completed) || (filter === "completed" && task.completed))
     .sort((a, b) => String(a.date || "").localeCompare(String(b.date || "")));
-  const month = cursor.toLocaleDateString(document.documentElement.lang === "km" ? "km-KH" : undefined, { month: "long", year: "numeric" });
   const today = todayISO();
   const selected = selectedDate || today;
-  const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
-  const offset = (first.getDay() + 6) % 7;
-  const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
-  const previousMonthDays = new Date(cursor.getFullYear(), cursor.getMonth(), 0).getDate();
-  const cells = [];
-
-  for (let index = 0; index < 42; index++) {
-    let day;
-    let monthOffset = 0;
-    if (index < offset) {
-      day = previousMonthDays - offset + index + 1;
-      monthOffset = -1;
-    } else if (index >= offset + daysInMonth) {
-      day = index - (offset + daysInMonth) + 1;
-      monthOffset = 1;
-    } else {
-      day = index - offset + 1;
-    }
-
-    const date = new Date(cursor.getFullYear(), cursor.getMonth() + monthOffset, day);
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`;
-    const dayTasks = allTasks.filter(task => task.date === key);
-    const dayEvents = classEvents.filter(event => event.date === key);
-    const label = formatDate(key, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
-    const eventMarkup = [
-      ...dayTasks.map(task => `<span class="calendar-event-chip study" title="${escapeHtml(task.title)}">${escapeHtml(task.title)}</span>`),
-      ...dayEvents.map(event => `<span class="calendar-event-chip ${event.type}" title="${escapeHtml(`${event.type}: ${event.title}`)}"><i></i>${escapeHtml(event.title)}</span>`),
-    ];
-    const preview = eventMarkup.slice(0, 2).join("");
-    const more = eventMarkup.length > 2 ? `<span class="calendar-more">+${eventMarkup.length - 2} more</span>` : "";
-    const count = dayTasks.length + dayEvents.length;
-    cells.push(`<button type="button" class="calendar-day ${monthOffset ? "muted-day" : ""} ${key === today ? "today" : ""} ${key === selected ? "selected" : ""} ${count ? "has-task" : ""}" data-action="planner-select-date" data-date="${key}" aria-label="${escapeHtml(label)}${count ? `, ${count} planned item${count === 1 ? "" : "s"}` : ""}" aria-pressed="${key === selected}"><span class="calendar-day-number">${day}</span><span class="calendar-day-events">${preview}${more}</span></button>`);
-  }
+  const month = cursor.toLocaleDateString(document.documentElement.lang === "km" ? "km-KH" : undefined, { month: "long", year: "numeric" });
+  const viewTitle = calendarView === "week" ? weekTitle(selected) : month;
+  const calendarContent = calendarView === "week"
+    ? renderWeekCalendar(allTasks, selected, today)
+    : calendarView === "agenda"
+      ? renderAgendaCalendar(allTasks)
+      : renderMonthCalendar(allTasks, selected, today);
 
   const selectedTasks = allTasks
     .filter(task => task.date === selected)
@@ -148,13 +133,81 @@ export function renderPlanner() {
     ? `<div class="day-plan-items">${selectedTasks.map(taskRow).join("")}${selectedEvents.map(classEventRow).join("")}</div>`
     : `<div class="empty-state"><div class="empty-icon">▣</div><b>Your day is open</b><p>No study tasks or class deadlines are planned for this day.</p><button class="btn btn-small btn-soft" data-action="add-task" data-date="${selected}" style="margin-top:10px">＋ Add task to this day</button></div>`;
 
-  return `<div class="page-heading"><div><div class="eyebrow">MAKE TIME FOR WHAT MATTERS</div><h1>Study planner</h1><p>One calendar for study plans, assignment deadlines, and class quizzes.</p></div><div class="heading-actions"><button class="btn btn-primary" data-action="add-task" data-date="${selected}">＋ Add task</button></div></div>
+  return `<div class="page-heading"><div><div class="eyebrow">MAKE TIME FOR WHAT MATTERS</div><h1>Study planner</h1><p>Plan study tasks and see your class deadlines in one calendar.</p></div><div class="heading-actions"><button class="btn btn-primary" data-action="add-task" data-date="${selected}">＋ Add task</button></div></div>
   <div class="grid-2 planner-layout">
-    <section class="panel calendar-panel"><div class="calendar-top"><button class="icon-btn" data-action="planner-month" data-delta="-1" aria-label="Previous month">‹</button><div class="calendar-title">${month}</div><div class="calendar-controls"><button class="btn btn-small" data-action="planner-today">Today</button><button class="icon-btn" data-action="planner-month" data-delta="1" aria-label="Next month">›</button></div></div><div class="calendar-grid">${["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"].map(value => `<div class="calendar-label">${value}</div>`).join("")}${cells.join("")}</div><div class="chart-legend calendar-legend"><span><i class="legend-dot"></i>Study task</span><span><i class="legend-dot blue"></i>Assignment</span><span><i class="legend-dot yellow"></i>Quiz</span><span><i class="legend-dot" style="background:#bba7ff"></i>Today</span></div></section>
+    <section class="panel calendar-panel calendar-panel-${calendarView}"><div class="calendar-toolbar"><div class="calendar-toolbar-date"><div class="calendar-toolbar-navigation"><button class="icon-btn" data-action="planner-month" data-delta="-1" aria-label="Previous ${calendarView}">‹</button><button class="btn btn-small calendar-today" data-action="planner-today">Today</button><button class="icon-btn" data-action="planner-month" data-delta="1" aria-label="Next ${calendarView}">›</button></div><h2 class="calendar-title">${escapeHtml(viewTitle)}</h2></div><div class="calendar-view-switch" role="group" aria-label="Calendar view">${[["month","Month"],["week","Week"],["agenda","Agenda"]].map(([key,label])=>`<button type="button" data-action="planner-view" data-view="${key}" aria-pressed="${calendarView===key}" class="${calendarView===key?"active":""}">${label}</button>`).join("")}</div></div>${calendarContent}<div class="chart-legend calendar-legend"><span><i class="legend-dot"></i>Study task</span><span><i class="legend-dot blue"></i>Assignment</span><span><i class="legend-dot yellow"></i>Quiz</span><span><i class="legend-dot" style="background:#bba7ff"></i>Today</span></div></section>
     <section class="panel day-plan-panel"><div class="panel-head"><div><h2 class="panel-title">${planTitle}</h2><p class="panel-subtitle">${formatDate(selected, { weekday: "long", month: "short", day: "numeric", year: "numeric" })}</p></div><span class="priority ${pendingCount ? "high" : "low"}">${pendingCount} pending</span></div>${dayContent}</section>
   </div>
   <section class="panel"><div class="panel-head"><div><h2 class="panel-title">Study tasks</h2><p class="panel-subtitle">A clear view of what's next</p></div><select class="select-field" id="task-filter" aria-label="Filter tasks"><option value="all" ${filter === "all" ? "selected" : ""}>All tasks</option><option value="pending" ${filter === "pending" ? "selected" : ""}>Pending</option><option value="completed" ${filter === "completed" ? "selected" : ""}>Completed</option></select></div>
     ${tasks.length ? `<div class="task-list">${tasks.map(taskRow).join("")}</div>` : `<div class="empty-state"><div class="empty-icon">✓</div><b>No tasks here</b><p>Create a study task, assignment, or exam reminder.</p></div>`}</section>`;
+}
+
+function renderMonthCalendar(allTasks, selected, today) {
+  const first = new Date(cursor.getFullYear(), cursor.getMonth(), 1);
+  const offset = (first.getDay() + 6) % 7;
+  const daysInMonth = new Date(cursor.getFullYear(), cursor.getMonth() + 1, 0).getDate();
+  const previousMonthDays = new Date(cursor.getFullYear(), cursor.getMonth(), 0).getDate();
+  const cells = [];
+  for (let index = 0; index < 42; index++) {
+    let day, monthOffset = 0;
+    if (index < offset) { day = previousMonthDays - offset + index + 1; monthOffset = -1; }
+    else if (index >= offset + daysInMonth) { day = index - (offset + daysInMonth) + 1; monthOffset = 1; }
+    else day = index - offset + 1;
+    const date = new Date(cursor.getFullYear(), cursor.getMonth() + monthOffset, day);
+    const key = dateKey(date), items = calendarItemsForDate(key, allTasks);
+    const label = formatDate(key, { weekday: "long", month: "long", day: "numeric", year: "numeric" });
+    const preview = items.slice(0, 2).map(calendarEventChip).join("");
+    const more = items.length > 2 ? `<span class="calendar-more">+${items.length - 2} more</span>` : "";
+    cells.push(`<button type="button" class="calendar-day ${monthOffset ? "muted-day" : ""} ${key===today?"today":""} ${key===selected?"selected":""} ${items.length?"has-task":""}" data-action="planner-select-date" data-date="${key}" aria-label="${escapeHtml(label)}${items.length?`, ${items.length} planned item${items.length===1?"":"s"}`:""}" aria-pressed="${key===selected}"><span class="calendar-day-number">${date.getDate()}</span><span class="calendar-day-events">${preview}${more}</span></button>`);
+  }
+  return `<div class="calendar-grid calendar-month-grid"><div class="calendar-label">Mon</div><div class="calendar-label">Tue</div><div class="calendar-label">Wed</div><div class="calendar-label">Thu</div><div class="calendar-label">Fri</div><div class="calendar-label">Sat</div><div class="calendar-label">Sun</div>${cells.join("")}</div>`;
+}
+
+function renderWeekCalendar(allTasks, selected, today) {
+  const start = dateFromKey(selected), offset = (start.getDay() + 6) % 7;
+  start.setDate(start.getDate() - offset);
+  const columns = Array.from({length:7},(_,index)=>{
+    const date = new Date(start); date.setDate(start.getDate()+index);
+    const key = dateKey(date),items = calendarItemsForDate(key,allTasks);
+    return `<button type="button" class="calendar-week-day ${key===today?"today":""} ${key===selected?"selected":""}" data-action="planner-select-date" data-date="${key}" aria-pressed="${key===selected}"><span class="calendar-week-label">${date.toLocaleDateString(document.documentElement.lang==="km"?"km-KH":undefined,{weekday:"short"})}</span><b class="calendar-week-number">${date.getDate()}</b><span class="calendar-week-events">${items.slice(0,5).map(calendarEventChip).join("")}${items.length>5?`<small>+${items.length-5} more</small>`:""}</span></button>`;
+  }).join("");
+  return `<div class="calendar-week-grid">${columns}</div>`;
+}
+
+function renderAgendaCalendar(allTasks) {
+  const prefix=`${cursor.getFullYear()}-${String(cursor.getMonth()+1).padStart(2,"0")}`;
+  const days=new Map();
+  for(const task of allTasks){if(task.date?.startsWith(prefix)){if(!days.has(task.date))days.set(task.date,[]);days.get(task.date).push({type:"study",title:task.title,detail:`${task.category||"Study task"} · ${Number(task.duration||0)} min · ${task.completed?"Completed":"To do"}`,task});}}
+  for(const event of classEvents){if(event.date?.startsWith(prefix)){if(!days.has(event.date))days.set(event.date,[]);days.get(event.date).push({type:event.type,title:event.title,detail:`${event.type==="quiz"?"Quiz":"Assignment"} · ${event.className} · ${event.status}`,event});}}
+  const rows=[...days.entries()].sort(([a],[b])=>a.localeCompare(b));
+  if(!rows.length)return `<div class="calendar-agenda-empty"><span>▦</span><b>No events this month</b><p>Add a study task or check your classes for upcoming deadlines.</p></div>`;
+  return `<div class="calendar-agenda-list">${rows.map(([date,items])=>`<section class="calendar-agenda-day"><button type="button" class="calendar-agenda-date ${date===todayISO()?"today":""}" data-action="planner-select-date" data-date="${date}"><span>${formatDate(date,{weekday:"short",month:"short",day:"numeric"})}</span><small>${items.length} item${items.length===1?"":"s"}</small></button><div class="calendar-agenda-items">${items.map(item=>item.type==="study"?`<article class="calendar-agenda-item study"><span class="calendar-agenda-dot"></span><div><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.detail)}</small></div><button type="button" class="text-action" data-action="edit-task" data-id="${escapeHtml(item.task.id)}">Edit</button></article>`:`<article class="calendar-agenda-item ${escapeHtml(item.type)}"><span class="calendar-agenda-dot"></span><div><b>${escapeHtml(item.title)}</b><small>${escapeHtml(item.detail)}</small></div><button type="button" class="text-action" data-action="planner-open-class" data-class-id="${escapeHtml(item.event.classId)}">Open</button></article>`).join("")}</div></section>`).join("")}</div>`;
+}
+
+function calendarItemsForDate(date, allTasks) {
+  return [...allTasks.filter(task=>task.date===date).map(task=>({type:"study",title:task.title})),...classEvents.filter(event=>event.date===date)];
+}
+
+function calendarEventChip(item) {
+  return `<span class="calendar-event-chip ${escapeHtml(item.type)}" title="${escapeHtml(item.title)}"><i></i>${escapeHtml(item.title)}</span>`;
+}
+
+function dateKey(date) {
+  return `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,"0")}-${String(date.getDate()).padStart(2,"0")}`;
+}
+
+function dateFromKey(value) {
+  const [year,month,day]=String(value).split("-").map(Number);
+  return new Date(year||new Date().getFullYear(),(month||1)-1,day||1,12);
+}
+
+function weekTitle(selected) {
+  const start=dateFromKey(selected),offset=(start.getDay()+6)%7;
+  start.setDate(start.getDate()-offset);
+  const end=new Date(start);end.setDate(start.getDate()+6);
+  const locale=document.documentElement.lang==="km"?"km-KH":undefined;
+  if(start.getMonth()===end.getMonth())return `${start.toLocaleDateString(locale,{month:"long"})} ${start.getDate()}–${end.getDate()}, ${start.getFullYear()}`;
+  return `${start.toLocaleDateString(locale,{month:"short",day:"numeric"})} – ${end.toLocaleDateString(locale,{month:"short",day:"numeric",year:"numeric"})}`;
 }
 
 function classEventRow(event) {
