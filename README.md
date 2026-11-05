@@ -26,8 +26,8 @@ The server creates `studytrack.sqlite3` in this folder for accounts, study data,
 - Students can create an account, join a class with the teacher's six-character code, view assignments, and submit a comment with files or a whole folder.
 - Teachers can create classes, share join codes, post assignments, review student work, add feedback, and enter or update scores.
 - Teachers can publish multiple-choice quizzes with due dates and up to 100 questions each. Students can take each quiz once, see their score, and review which answers were correct; teachers can review class results.
-- The study planner combines personal tasks and class deadlines in month, week, and agenda calendar views. Select a day to see its plan, then add tasks or open a class item directly.
-- Sign-in includes a one-time email password-reset flow when SMTP is configured on the server. Successful sign-in also shows a short welcome animation.
+- The full-width study planner combines personal tasks and class deadlines in month, week, and agenda calendar views. Select a day to see its plan, then add tasks or open a class item directly.
+- Sign-in includes a one-time email password-reset flow when SMTP is configured on the server. Successful sign-in shows a brief full-screen welcome animation with an opening book; users can skip it.
 - Students can privately message their class teacher or classmates. Teachers can privately message students in their own classes; each conversation is visible only to its two participants.
 - The Messages area can find a registered StudyTrack account by its exact email address and start a private chat. It does not send email to people outside StudyTrack, and the address is not shown in the chat.
 - Each account has a separate study workspace. Teachers only see class membership and submissions for classes they own; students only see their own work and classes they joined.

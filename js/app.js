@@ -102,6 +102,7 @@ document.addEventListener("click",event=>{
     case "planner-select-date":selectPlannerDate(actionElement.dataset.date);refresh();break;
     case "planner-today":goToPlannerToday();refresh();break;
     case "planner-view":setPlannerView(actionElement.dataset.view);refresh();break;
+    case "skip-welcome":dismissArrivalWelcome();break;
     case "planner-open-class":selectClass(actionElement.dataset.classId);navigate("classroom");break;
     case "add-goal":openGoalForm();break;
     case "edit-goal":openGoalForm(idValue);break;
@@ -130,6 +131,7 @@ document.addEventListener("click",event=>{
     case "admin-save-role":saveManagedRole(idValue);break;
   }
 });
+document.addEventListener("keydown",event=>{if(event.key==="Escape"&&document.querySelector(".arrival-welcome-screen"))dismissArrivalWelcome();});
 
 document.getElementById("menu-toggle").addEventListener("click",()=>sidebar.classList.toggle("open"));
 document.getElementById("theme-toggle").addEventListener("click",toggleTheme);
@@ -334,14 +336,19 @@ async function activateAccount(session,localSnapshot,isNew,showWelcome=false){
 }
 
 function showArrivalWelcome(user,isNew){
-  const region=document.getElementById("toast-region");if(!region)return;
   if(arrivalWelcomeTimer)clearTimeout(arrivalWelcomeTimer);
-  region.querySelector(".arrival-welcome")?.remove();
-  const name=String(user?.name||"there").trim().split(/\s+/)[0]||"there";
-  const toast=document.createElement("div");toast.className="arrival-welcome";toast.setAttribute("role","status");
-  toast.innerHTML=`<span class="arrival-welcome-mark" aria-hidden="true">✦</span><span><b>${isNew?"Welcome to StudyTrack":"Welcome back"}, ${escapeHtml(name)}!</b><small>Your study space is ready.</small></span>`;
-  region.append(toast);requestAnimationFrame(()=>toast.classList.add("visible"));
-  arrivalWelcomeTimer=setTimeout(()=>{toast.classList.remove("visible");setTimeout(()=>toast.remove(),320);},3400);
+  document.querySelector(".arrival-welcome-screen")?.remove();
+  const name=String(user?.name||"there").trim()||"there";
+  const overlay=document.createElement("div");overlay.className="arrival-welcome-screen";overlay.setAttribute("role","dialog");overlay.setAttribute("aria-modal","true");overlay.setAttribute("aria-labelledby","arrival-welcome-title");
+  overlay.innerHTML=`<button type="button" class="arrival-skip" data-action="skip-welcome">Skip intro <span aria-hidden="true">×</span></button><div class="arrival-welcome-content"><div class="arrival-book-scene" aria-hidden="true"><span class="arrival-book-orbit"></span><span class="arrival-floating-book one"><i></i><i></i></span><span class="arrival-floating-book two"><i></i><i></i></span><span class="arrival-floating-book three"><i></i><i></i></span><span class="arrival-scene-spark spark-one">✦</span><span class="arrival-scene-spark spark-two">✧</span><span class="arrival-scene-spark spark-three">✦</span><div class="arrival-open-book"><div class="arrival-book-pages"><div class="arrival-book-page left"><i></i><i></i><i></i><i></i><b>YOUR NEXT<br>CHAPTER</b></div><div class="arrival-book-page right"><i></i><i></i><i></i><i></i><span>✦</span></div></div><div class="arrival-book-cover"><span class="arrival-book-emblem">✦</span><b>StudyTrack</b><small>LEARNING JOURNAL</small></div></div></div><div class="arrival-welcome-copy"><span class="arrival-welcome-eyebrow">YOUR PERSONAL STUDY SPACE</span><h1 id="arrival-welcome-title">${isNew?"Welcome to StudyTrack":"Welcome back"}, ${escapeHtml(name)}!</h1><p>Your next chapter starts now. Let’s make today count.</p></div><div class="arrival-progress-track"><i></i></div><span class="arrival-welcome-footnote">A little progress, every day.</span></div>`;
+  document.body.append(overlay);requestAnimationFrame(()=>{overlay.classList.add("visible");overlay.querySelector(".arrival-skip")?.focus({preventScroll:true});});
+  arrivalWelcomeTimer=setTimeout(dismissArrivalWelcome,3000);
+}
+
+function dismissArrivalWelcome(){
+  if(arrivalWelcomeTimer){clearTimeout(arrivalWelcomeTimer);arrivalWelcomeTimer=null;}
+  const overlay=document.querySelector(".arrival-welcome-screen");if(!overlay||overlay.classList.contains("closing"))return;
+  overlay.classList.add("closing");setTimeout(()=>overlay.remove(),420);
 }
 
 function oauthMessage(code,provider=""){
