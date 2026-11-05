@@ -48,7 +48,7 @@ The server creates `studytrack.sqlite3` in this folder for accounts, study data,
 - For local use, start the server with both codes set, for example: `STUDYTRACK_TEACHER_CODE="teacher-secret" STUDYTRACK_ADMIN_CODE="owner-secret" python3 server.py` (PowerShell uses `$env:STUDYTRACK_ADMIN_CODE = "owner-secret"` before `py server.py`).
 - The Admin console lists student and teacher accounts, lets the owner pause or restore accounts, and shows recent class and account actions. Role changes are locked while an account is part of a class. The activity log does not include message text, scores, or notes.
 
-Students do not need that code. There is currently no email verification or password-reset flow, so accounts should use a password they can keep safe.
+Students do not need that code. If SMTP email is configured on the server, users can recover a forgotten password with a one-time link that expires after 30 minutes. The link can only be used once; resetting the password signs the account out on all devices. See the AWS deployment guide for the SMTP settings.
 
 ## Social sign-in
 
@@ -122,6 +122,7 @@ The app stores account data and submissions in the server's SQLite database so u
 - Optional profile cover photos and short bios. Profiles can be shared with classmates, with any StudyTrack account, or kept private. When a profile is private or only shared with classmates, other accounts can see only the person's name and role. Emails and academic records are not returned by the profile-view endpoint.
 - JSON backup export/import, confirmed account-data deletion, and an optional local PIN for casual privacy.
 - Teacher, student, and protected admin roles; private class join codes; file/folder submissions; teacher feedback and grades; multi-question class quizzes; private class-member chat; and email-address lookup for chats between StudyTrack accounts.
+- Shared member photos appear in direct and classroom chat avatars when the profile visibility settings allow that viewer to see them.
 - Class join codes include a working one-click copy button. Profile settings use a cover-and-avatar layout and keep the existing sharing controls.
 
 ## Privacy and security

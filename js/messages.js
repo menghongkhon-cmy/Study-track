@@ -9,14 +9,14 @@ export function renderMessages(){
     <p class="direct-privacy-note">Only the two people in a direct chat can read its messages. Admin activity records show that a message was sent, not its contents.</p>`;
 }
 
-export function renderDirectThreads(threads=[],activeId=""){
+export function renderDirectThreads(threads=[],activeId="",activePeer=null){
   if(!threads.length)return `<div class="direct-thread-empty"><span>✦</span><b>No messages yet</b><small>Find someone by email to begin.</small></div>`;
-  return `<div class="direct-thread-list">${threads.map(thread=>`<button type="button" class="direct-thread ${thread.peer_id===activeId?"active":""}" data-action="open-direct-chat" data-id="${escapeHtml(thread.peer_id)}"><span class="direct-avatar">${escapeHtml((thread.peer_name||"S").slice(0,1).toUpperCase())}</span><span class="direct-thread-copy"><b>${escapeHtml(thread.peer_name)}</b><small>${escapeHtml(thread.last_message||"Start a conversation")}</small></span><span class="direct-thread-time">${messageTime(thread.created_at)}</span></button>`).join("")}</div>`;
+  return `<div class="direct-thread-list">${threads.map(thread=>{const peer=thread.peer_id===activePeer?.id?activePeer:null;return `<button type="button" class="direct-thread ${thread.peer_id===activeId?"active":""}" data-action="open-direct-chat" data-id="${escapeHtml(thread.peer_id)}">${profileAvatar(peer?.name||thread.peer_name,peer?.photo,peer?.avatar)}<span class="direct-thread-copy"><b>${escapeHtml(thread.peer_name)}</b><small>${escapeHtml(thread.last_message||"Start a conversation")}</small></span><span class="direct-thread-time">${messageTime(thread.created_at)}</span></button>`;}).join("")}</div>`;
 }
 
 export function renderDirectConversation(peer,messages=[],userId=""){
   const body=renderDirectMessageFeed(messages,userId);
-  return `<header class="direct-conversation-head"><button type="button" class="direct-person-link" data-action="view-profile" data-id="${escapeHtml(peer.id)}" aria-label="View ${escapeHtml(peer.name)}'s profile"><span class="direct-avatar large">${escapeHtml((peer.name||"S").slice(0,1).toUpperCase())}</span><span><b>${escapeHtml(peer.name)}</b><small>${escapeHtml(peer.role||"StudyTrack member")} · View profile</small></span></button><span class="chat-privacy-tag">Private chat</span></header><div class="direct-message-feed" id="direct-message-feed" aria-live="polite">${body}</div><form class="direct-compose" id="direct-chat-form" data-peer-id="${escapeHtml(peer.id)}"><textarea name="body" rows="2" maxlength="2000" required placeholder="Write a message…" aria-label="Write a private message"></textarea><div class="direct-compose-foot"><small>Only you and ${escapeHtml(peer.name)} can read these messages.</small><button class="btn btn-primary btn-small" type="submit">Send <span>↑</span></button></div></form>`;
+  return `<header class="direct-conversation-head"><button type="button" class="direct-person-link" data-action="view-profile" data-id="${escapeHtml(peer.id)}" aria-label="View ${escapeHtml(peer.name)}'s profile">${profileAvatar(peer.name,peer.photo,peer.avatar,"large")}<span><b>${escapeHtml(peer.name)}</b><small>${escapeHtml(peer.role||"StudyTrack member")} · View profile</small></span></button><span class="chat-privacy-tag">Private chat</span></header><div class="direct-message-feed" id="direct-message-feed" aria-live="polite">${body}</div><form class="direct-compose" id="direct-chat-form" data-peer-id="${escapeHtml(peer.id)}"><textarea name="body" rows="2" maxlength="2000" required placeholder="Write a message…" aria-label="Write a private message"></textarea><div class="direct-compose-foot"><small>Only you and ${escapeHtml(peer.name)} can read these messages.</small><button class="btn btn-primary btn-small" type="submit">Send <span>↑</span></button></div></form>`;
 }
 
 export function renderDirectMessageFeed(messages=[],userId=""){
@@ -26,5 +26,11 @@ export function renderDirectMessageFeed(messages=[],userId=""){
 
 export function renderPersonSearch(person){
   if(!person)return `<div class="people-search-message empty">No active account matched that email. Check the spelling and try again.</div>`;
-  return `<div class="people-search-result"><span class="direct-avatar">${escapeHtml((person.name||"S").slice(0,1).toUpperCase())}</span><span><b>${escapeHtml(person.name)}</b><small>${escapeHtml(person.role)}</small></span><button type="button" class="btn btn-small btn-soft" data-action="start-direct-chat" data-id="${escapeHtml(person.id)}">Open chat <span>→</span></button><button type="button" class="text-action" data-action="view-profile" data-id="${escapeHtml(person.id)}">Profile</button></div>`;
+  return `<div class="people-search-result">${profileAvatar(person.name,person.photo,person.avatar)}<span><b>${escapeHtml(person.name)}</b><small>${escapeHtml(person.role)}</small></span><button type="button" class="btn btn-small btn-soft" data-action="start-direct-chat" data-id="${escapeHtml(person.id)}">Open chat <span>→</span></button><button type="button" class="text-action" data-action="view-profile" data-id="${escapeHtml(person.id)}">Profile</button></div>`;
+}
+
+function profileAvatar(name,photo,avatar="",size=""){
+  const image=typeof photo==="string"&&photo.length<=850000&&/^data:image\/(?:jpeg|png|webp);base64,[A-Za-z0-9+/=]+$/.test(photo)?photo:"";
+  const initials=String(avatar||name||"S").trim().slice(0,2).toUpperCase()||"S";
+  return `<span class="direct-avatar ${size} ${image?"has-photo":""}">${image?`<img src="${escapeHtml(image)}" alt="">`:escapeHtml(initials)}</span>`;
 }

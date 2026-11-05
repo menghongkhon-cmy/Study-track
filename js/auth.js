@@ -1,6 +1,6 @@
 const sessionState={user:null,csrf:"",active:false,suppressSync:false};
 const writeQueues=new Map();
-const serverSetupHelp="StudyTrack's account API is unavailable at this address. In Render, deploy this repository as a Python Web Service (not a Static Site) with start command `python server.py`. After deployment, open `/api/health` on this same domain; it should return `{\"ok\":true}`. Then refresh StudyTrack.";
+const serverSetupHelp="StudyTrack’s account API is unavailable at this address. Check that the StudyTrack server is running and that this domain forwards /api requests to it. Open /api/health on this same domain; it should return {\"ok\":true}. Then refresh StudyTrack.";
 globalThis.StudyTrackAuth=sessionState;
 
 export function currentUser(){return sessionState.user;}
@@ -27,6 +27,8 @@ export async function apiRequest(path,{method="GET",body,authWrite=false}={}){
 
 export async function restoreSession(){const payload=await apiRequest("/api/session");if(!Object.hasOwn(payload,"user"))throw new Error(serverSetupHelp);if(payload.user)setSession(payload);else clearSession();return payload;}
 export async function authenticate(mode,form){const payload=await apiRequest(`/api/${mode}`,{method:"POST",body:form});if(!payload.user||!payload.csrf)throw new Error(serverSetupHelp);setSession(payload);return payload;}
+export async function requestPasswordReset(email){return apiRequest("/api/password-reset/request",{method:"POST",body:{email}});}
+export async function resetPassword(token,password){return apiRequest("/api/password-reset/confirm",{method:"POST",body:{token,password}});}
 export async function logout(){if(sessionState.active)await apiRequest("/api/logout",{method:"POST",body:{},authWrite:true});clearSession();}
 export async function getRemoteData(){return (await apiRequest("/api/data")).data||{};}
 export async function uploadData(data){await apiRequest("/api/data",{method:"PUT",body:{data},authWrite:true});}

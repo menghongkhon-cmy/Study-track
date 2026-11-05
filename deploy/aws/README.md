@@ -38,7 +38,9 @@ sudo chown root:studytrack /etc/studytrack/studytrack.env
 sudo chmod 640 /etc/studytrack/studytrack.env
 ```
 
-Use separate, random teacher and admin codes. The app uses the provider callbacks below when you later enable Google/GitHub sign-in:
+Use separate, random teacher and admin codes. To enable **Forgot password**, add the SMTP host, port, username, password, and sender values to this private environment file. Port 587 uses STARTTLS; port 465 uses SMTP over TLS. Use a provider-specific app password if your email provider requires one, never your normal email account password. Keep SMTP credentials out of the project ZIP and GitHub. After changing the environment file, restart the service with `sudo systemctl restart studytrack`.
+
+The app uses the provider callbacks below when you later enable Google/GitHub sign-in:
 
 ```text
 https://study.example.com/auth/google/callback

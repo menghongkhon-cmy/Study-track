@@ -15,10 +15,13 @@ import os
 import re
 import secrets
 import sqlite3
+import smtplib
+import ssl
 import threading
 import time
 import traceback
 from datetime import date, datetime, timedelta, timezone
+from email.message import EmailMessage
 from http import HTTPStatus
 from http.cookies import SimpleCookie
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -105,6 +108,11 @@ def init_db() -> None:
           link_user_id TEXT REFERENCES users(id) ON DELETE CASCADE,
           expires_at INTEGER NOT NULL, created_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS password_reset_tokens (
+          token_hash TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          expires_at INTEGER NOT NULL, created_at INTEGER NOT NULL
+        );
         CREATE TABLE IF NOT EXISTS user_data (
           user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
           data_key TEXT NOT NULL, data_json TEXT NOT NULL,
@@ -169,6 +177,7 @@ def init_db() -> None:
         );
         CREATE INDEX IF NOT EXISTS idx_sessions_user_expiry ON sessions(user_id,expires_at);
         CREATE INDEX IF NOT EXISTS idx_oauth_states_expiry ON oauth_states(expires_at);
+        CREATE INDEX IF NOT EXISTS idx_password_reset_user_expiry ON password_reset_tokens(user_id,expires_at);
         CREATE INDEX IF NOT EXISTS idx_memberships_user ON class_memberships(user_id);
         CREATE INDEX IF NOT EXISTS idx_assignments_class ON assignments(class_id,due_date);
         CREATE INDEX IF NOT EXISTS idx_quizzes_class ON quizzes(class_id,created_at);
@@ -194,6 +203,7 @@ def init_db() -> None:
             db.execute("ALTER TABLE quiz_attempts ADD COLUMN answers_json TEXT NOT NULL DEFAULT '[]'")
         db.execute("DELETE FROM sessions WHERE expires_at < ?", (int(time.time()),))
         db.execute("DELETE FROM oauth_states WHERE expires_at < ?", (int(time.time()),))
+        db.execute("DELETE FROM password_reset_tokens WHERE expires_at < ?", (int(time.time()),))
         db.execute("INSERT OR IGNORE INTO app_settings(setting_key,setting_json,updated_at) VALUES('appearance',?,?)",
                    (json.dumps({"background": "angkor"}), utc_now()))
 
@@ -204,6 +214,44 @@ def utc_now() -> str:
 
 def password_digest(password: str, salt: bytes) -> bytes:
     return hashlib.pbkdf2_hmac("sha256", password.encode("utf-8"), salt, PBKDF2_ROUNDS, dklen=32)
+
+
+def password_reset_mail_config() -> dict | None:
+    host = os.environ.get("STUDYTRACK_SMTP_HOST", "").strip()
+    username = os.environ.get("STUDYTRACK_SMTP_USERNAME", "").strip()
+    password = os.environ.get("STUDYTRACK_SMTP_PASSWORD", "")
+    try:
+        port = int(os.environ.get("STUDYTRACK_SMTP_PORT", "587"))
+    except ValueError:
+        return None
+    if not host or not username or not password or not 1 <= port <= 65535:
+        return None
+    sender = os.environ.get("STUDYTRACK_SMTP_FROM_EMAIL", "").strip() or username
+    return {"host": host, "port": port, "username": username, "password": password, "sender": sender}
+
+
+def send_password_reset_email(config: dict, recipient: str, reset_url: str) -> None:
+    message = EmailMessage()
+    message["Subject"] = "Reset your StudyTrack password"
+    message["From"] = config["sender"]
+    message["To"] = recipient
+    message.set_content(
+        "A request was made to reset your StudyTrack password.\n\n"
+        f"Use this one-time link within 30 minutes:\n{reset_url}\n\n"
+        "If you did not request this change, you can ignore this message. Your current password will remain unchanged.\n"
+    )
+    context = ssl.create_default_context()
+    if config["port"] == 465:
+        with smtplib.SMTP_SSL(config["host"], config["port"], timeout=20, context=context) as server:
+            server.login(config["username"], config["password"])
+            server.send_message(message)
+    else:
+        with smtplib.SMTP(config["host"], config["port"], timeout=20) as server:
+            server.ehlo()
+            server.starttls(context=context)
+            server.ehlo()
+            server.login(config["username"], config["password"])
+            server.send_message(message)
 
 
 def secure_cookies_enabled() -> bool:
@@ -799,6 +847,12 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
             if path == "/api/login":
                 self.login()
                 return
+            if path == "/api/password-reset/request":
+                self.request_password_reset()
+                return
+            if path == "/api/password-reset/confirm":
+                self.confirm_password_reset()
+                return
             if path == "/api/logout":
                 user = self.require_session(csrf=True)
                 if user:
@@ -1048,6 +1102,100 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
             log_activity(db, row["id"], "Signed in")
         token, csrf = self.make_session(row["id"])
         self.send_json({"user":self.user_payload(row),"csrf":csrf},cookie=self.set_session_cookie(token))
+
+    def request_password_reset(self) -> None:
+        if not self.check_origin():
+            self.send_error_json(HTTPStatus.FORBIDDEN, "Request origin was not accepted.")
+            return
+        config = password_reset_mail_config()
+        if not config:
+            self.send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "Password reset email is not configured. Contact the StudyTrack administrator.")
+            return
+        ip = self.client_ip()
+        ip_key = f"password-reset:ip:{ip}"
+        if rate_limited(ip_key, limit=5, window=900):
+            self.send_error_json(HTTPStatus.TOO_MANY_REQUESTS, "Too many reset requests. Wait 15 minutes and try again.")
+            return
+        record_failed_auth(ip_key, window=900)
+        body = self.read_json()
+        email = str(body.get("email", "")).strip().lower()
+        if len(email) > 254 or not re.fullmatch(r"[^\s@]+@[^\s@]+\.[^\s@]+", email):
+            self.send_error_json(HTTPStatus.BAD_REQUEST, "Enter a valid email address.")
+            return
+        try:
+            public_base = self.oauth_public_base()
+        except ValueError:
+            self.send_error_json(HTTPStatus.SERVICE_UNAVAILABLE, "Password reset link configuration is not valid.")
+            return
+        email_key = "password-reset:email:" + hashlib.sha256(email.encode("utf-8")).hexdigest()
+        if rate_limited(email_key, limit=3, window=900):
+            self.send_error_json(HTTPStatus.TOO_MANY_REQUESTS, "Too many reset requests for this address. Wait 15 minutes and try again.")
+            return
+        record_failed_auth(email_key, window=900)
+
+        user = None
+        raw_token = secrets.token_urlsafe(32)
+        token_hash = hashlib.sha256(raw_token.encode("utf-8")).hexdigest()
+        expires_at = int(time.time()) + 30 * 60
+        with connect_db() as db:
+            db.execute("DELETE FROM password_reset_tokens WHERE expires_at<=?", (int(time.time()),))
+            user = db.execute("SELECT id FROM users WHERE email=? AND is_disabled=0", (email,)).fetchone()
+            if user:
+                db.execute("DELETE FROM password_reset_tokens WHERE user_id=?", (user["id"],))
+                db.execute("INSERT INTO password_reset_tokens(token_hash,user_id,expires_at,created_at) VALUES(?,?,?,?)",
+                           (token_hash, user["id"], expires_at, int(time.time())))
+
+        if user:
+            # Put the one-time credential in the fragment so HTTP access logs
+            # and Referer headers never receive it. Send asynchronously so the
+            # response time does not reveal whether the email has an account.
+            reset_url = public_base + "/#password_reset=" + quote(raw_token, safe="")
+
+            def deliver_reset_email() -> None:
+                try:
+                    send_password_reset_email(config, email, reset_url)
+                except Exception as exc:
+                    with connect_db() as db:
+                        db.execute("DELETE FROM password_reset_tokens WHERE token_hash=?", (token_hash,))
+                    # Keep the submitted email and reset token out of server logs.
+                    print(f"StudyTrack password reset email failed ({type(exc).__name__}).")
+
+            threading.Thread(target=deliver_reset_email, name="studytrack-password-reset-mail", daemon=True).start()
+
+        self.send_json({"ok": True, "message": "If an account exists for this email, a reset link will arrive shortly."})
+
+    def confirm_password_reset(self) -> None:
+        if not self.check_origin():
+            self.send_error_json(HTTPStatus.FORBIDDEN, "Request origin was not accepted.")
+            return
+        body = self.read_json()
+        token = str(body.get("token", ""))
+        password = str(body.get("password", ""))
+        if not 10 <= len(password) <= 128:
+            self.send_error_json(HTTPStatus.BAD_REQUEST, "Choose a password with at least 10 characters.")
+            return
+        if not 32 <= len(token) <= 128:
+            self.send_error_json(HTTPStatus.BAD_REQUEST, "This reset link is invalid or expired. Request a new one.")
+            return
+        token_hash = hashlib.sha256(token.encode("utf-8")).hexdigest()
+        now = int(time.time())
+        with connect_db() as db:
+            # Serialize token checks so two concurrent requests cannot both use
+            # the same one-time link before either deletes it.
+            db.execute("BEGIN IMMEDIATE")
+            row = db.execute("""SELECT t.user_id,u.is_disabled FROM password_reset_tokens t
+                                JOIN users u ON u.id=t.user_id
+                                WHERE t.token_hash=? AND t.expires_at>?""", (token_hash, now)).fetchone()
+            if not row or row["is_disabled"]:
+                self.send_error_json(HTTPStatus.BAD_REQUEST, "This reset link is invalid or expired. Request a new one.")
+                return
+            salt = secrets.token_bytes(16)
+            db.execute("UPDATE users SET password_salt=?,password_hash=? WHERE id=?",
+                       (salt.hex(), password_digest(password, salt).hex(), row["user_id"]))
+            db.execute("DELETE FROM sessions WHERE user_id=?", (row["user_id"],))
+            db.execute("DELETE FROM password_reset_tokens WHERE user_id=?", (row["user_id"],))
+            log_activity(db, row["user_id"], "Reset account password")
+        self.send_json({"ok": True, "message": "Password updated. Sign in with your new password."})
 
     def get_user_data(self, user: dict) -> None:
         with connect_db() as db:

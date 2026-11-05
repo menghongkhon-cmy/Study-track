@@ -945,3 +945,25 @@ html[lang="km"] *{letter-spacing:normal}
   .topbar-actions .language-picker-trigger{width:32px;min-width:32px;padding:0}
 }
 @media(prefers-reduced-motion:reduce){.pwa-install-button{animation:none!important;transition:none!important}}
+
+
+/* Account password recovery screens */
+.auth-recovery-panel{width:min(560px,100%);min-height:0;grid-template-columns:1fr}
+.auth-recovery-panel .auth-form-panel{padding:42px 44px}
+.auth-recovery-panel .auth-form-inner{width:100%;max-width:430px;margin:0 auto}
+.auth-recovery-brand{display:flex;align-items:center;gap:11px;margin:0 0 30px;color:#202945;font-size:18px;font-weight:760;letter-spacing:-.5px}
+.auth-recovery-mark{display:grid;place-items:center;color:#fff;font-size:20px}
+.auth-recovery-welcome{margin-bottom:25px}
+.auth-recovery-welcome h2{margin:0 0 9px;color:#202945;font-size:28px;letter-spacing:-1px}
+.auth-recovery-welcome p{margin:0;color:#71809a;font-size:13px;line-height:1.65}
+.auth-recovery-panel .auth-form{gap:14px}
+.auth-forgot-row{display:flex;justify-content:flex-end;margin-top:-3px}
+.auth-forgot-link{padding:0;border:0;background:none;color:#7057d5;font:inherit;font-size:11px;font-weight:650;cursor:pointer}
+.auth-forgot-link:hover{text-decoration:underline}
+.auth-recovery-notice{margin:0;padding:12px 14px;border:1px solid rgba(32,170,129,.22);border-radius:12px;background:#effaf6;color:#187d5c;font-size:11px;line-height:1.6}
+.auth-recovery-panel .auth-switch{margin-top:20px}
+.auth-recovery-panel .auth-security-note{margin-top:18px}
+@media(max-width:760px){.auth-recovery-panel .auth-form-panel{padding:32px 23px}.auth-recovery-welcome{margin-bottom:22px}.auth-recovery-welcome h2{font-size:24px}}
+
+/* Shared member photos in conversation avatars */
+.direct-avatar img,.chat-avatar img{display:block;width:100%;height:100%;object-fit:cover;border-radius:inherit}
