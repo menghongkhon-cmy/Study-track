@@ -125,6 +125,7 @@ The app stores account data and submissions in the server's SQLite database so u
 - Teacher, student, and protected admin roles; private class join codes; file/folder submissions; teacher feedback and grades; multi-question class quizzes; private class-member chat; and email-address lookup for chats between StudyTrack accounts.
 - Shared member photos appear in direct and classroom chat avatars when the profile visibility settings allow that viewer to see them.
 - Direct private chats support a message plus one file or picture attachment (up to 8 MB) and an emoji picker. Attachments are stored with the chat and can be opened only by the two conversation participants.
+- Notifications are saved to each account for new private/class messages, students joining a class, assignments, quizzes, submissions, and grades or feedback. The top-bar bell updates while the app is open; optional browser alerts can be enabled from its panel. Browser alerts need StudyTrack open in a browser tab.
 - Class join codes include a working one-click copy button. Profile settings use a cover-and-avatar layout and keep the existing sharing controls.
 
 ## Privacy and security

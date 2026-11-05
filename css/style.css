@@ -974,10 +974,12 @@ html[lang="km"] *{letter-spacing:normal}
 .direct-compose{position:relative}
 .direct-compose-tools{display:flex;align-items:center;gap:7px;position:relative;margin-top:7px}
 .direct-compose-tool{display:inline-flex;align-items:center;gap:6px;min-height:30px;padding:5px 9px;border:1px solid var(--line-strong);border-radius:9px;background:rgba(148,163,184,.06);color:#c8b9ff;font-size:10px;font-weight:650;cursor:pointer}
+.direct-compose-tool .studytrack-icon{width:13px;height:13px}
 .direct-compose-tool:hover{background:rgba(139,92,246,.14);border-color:rgba(154,121,255,.38)}
 .direct-attachment-preview{display:flex;align-items:center;gap:8px;min-width:0;margin-top:7px;padding:7px 9px;border:1px solid var(--line);border-radius:9px;background:rgba(5,12,24,.25);color:var(--muted);font-size:9px}
 .direct-attachment-preview:empty{display:none}
 .direct-selected-icon{color:#bca9ff;font-size:14px}
+.direct-selected-icon .studytrack-icon{width:15px;height:15px}
 .direct-selected-name{min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--text)}
 .direct-attachment-preview small{margin-left:auto;white-space:nowrap;color:var(--faint)}
 .direct-attachment-preview button{width:22px;height:22px;border:0;border-radius:7px;background:transparent;color:var(--muted);font-size:16px;cursor:pointer}
@@ -991,10 +993,12 @@ html[lang="km"] *{letter-spacing:normal}
 .direct-attachment-image img{display:block;width:min(250px,100%);max-height:190px;object-fit:contain;background:rgba(0,0,0,.13)}
 .direct-message-attachment:has(.direct-attachment-image){align-items:flex-start;flex-wrap:wrap}
 .direct-attachment-file-icon{display:grid;place-items:center;flex:none;width:31px;height:34px;border-radius:8px;background:rgba(139,92,246,.16);color:#c5b4ff;font-size:16px}
+.direct-attachment-file-icon .studytrack-icon{width:16px;height:16px}
 .direct-attachment-file-info{display:grid;gap:2px;min-width:0;flex:1}
 .direct-attachment-file-info b{max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:9px}
 .direct-attachment-file-info small{color:var(--muted);font-size:8px}
 .direct-attachment-download{display:grid;place-items:center;flex:none;width:25px;height:25px;border-radius:7px;background:rgba(139,92,246,.14);color:#d4c7ff;text-decoration:none;font-size:15px}
+.direct-attachment-download .studytrack-icon{width:14px;height:14px}
 .direct-attachment-download:hover{background:rgba(139,92,246,.28)}
 .light-theme .direct-compose-tool,.light-theme .direct-attachment-preview,.light-theme .direct-message-attachment{background:#fff}
 .light-theme .chat-emoji-picker{background:#fff;box-shadow:0 16px 38px rgba(34,47,75,.2)}
@@ -1117,3 +1121,43 @@ html[lang="km"] *{letter-spacing:normal}
 @keyframes arrivalProgress{to{transform:scaleX(1)}}
 @media(max-width:600px){.arrival-welcome-screen{padding:20px}.arrival-skip{top:max(15px,env(safe-area-inset-top));right:max(15px,env(safe-area-inset-right));min-height:38px;font-size:10px}.arrival-book-scene{height:250px;transform:scale(.85);transform-origin:bottom center;margin-bottom:-12px}.arrival-welcome-copy{gap:9px}.arrival-welcome-eyebrow{font-size:9px;letter-spacing:1.5px}.arrival-welcome-copy h1{font-size:clamp(29px,8vw,40px);letter-spacing:-1px}.arrival-welcome-copy p{max-width:300px;font-size:12px}}
 @media(prefers-reduced-motion:reduce){.arrival-welcome-screen,.arrival-welcome-content{transition:none!important}.arrival-welcome-screen:before,.arrival-welcome-screen:after,.arrival-book-orbit,.arrival-open-book,.arrival-book-page i,.arrival-book-cover,.arrival-floating-book,.arrival-scene-spark,.arrival-progress-track i{animation:none!important}.arrival-book-cover{transform:rotateY(-154deg)}.arrival-progress-track i{transform:scaleX(1)}}
+
+/* Account notifications */
+.notification-control{position:relative;display:flex;align-items:center;z-index:30}
+.notification-trigger{position:relative}
+.notification-trigger>svg{width:18px;height:18px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.notification-badge{position:absolute;top:-4px;right:-4px;min-width:17px;height:17px;padding:0 4px;border:2px solid #111a2a;border-radius:999px;background:#ff6682;color:#fff;display:grid;place-items:center;font-size:8px;font-weight:800;line-height:1}
+.notification-badge[hidden]{display:none}
+.notification-popover{position:absolute;top:calc(100% + 12px);right:0;width:min(380px,calc(100vw - 28px));overflow:hidden;border:1px solid var(--line-strong);border-radius:17px;background:linear-gradient(145deg,#18253b,#101a2c);box-shadow:0 24px 70px rgba(0,0,0,.48);color:var(--text);animation:notificationDrop .16s ease-out}
+.notification-popover[hidden]{display:none}
+.notification-popover-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;border-bottom:1px solid var(--line)}
+.notification-popover-head>div{display:grid;gap:3px;min-width:0}
+.notification-popover-head b{font-size:13px}
+.notification-popover-head small,.notification-popover-foot{color:var(--muted);font-size:10px}
+.notification-popover-head .text-action{white-space:nowrap;font-size:10px}
+.notification-list{max-height:min(430px,60vh);overflow:auto;padding:6px}
+.notification-item{width:100%;display:flex;align-items:flex-start;gap:11px;padding:11px 10px;border:0;border-radius:12px;background:transparent;color:inherit;text-align:left;cursor:pointer;transition:background .16s ease}
+.notification-item:hover{background:rgba(139,92,246,.12)}
+.notification-item.unread{background:rgba(139,92,246,.075)}
+.notification-kind-icon{width:34px;height:34px;display:grid;place-items:center;flex:none;border-radius:11px;background:rgba(139,92,246,.14);color:#bca9ff}
+.notification-kind-icon .studytrack-icon{width:17px;height:17px}
+.notification-item-copy{display:grid;gap:3px;flex:1;min-width:0}
+.notification-item-copy b{font-size:11px;font-weight:650;line-height:1.35}
+.notification-item-copy small{color:var(--muted);font-size:10px;line-height:1.4}
+.notification-item-copy time{color:#74839b;font-size:9px;margin-top:2px}
+.notification-unread-dot{width:7px;height:7px;flex:none;margin-top:6px;border-radius:50%;background:#a487ff;box-shadow:0 0 10px rgba(164,135,255,.6)}
+.notification-item:not(.unread) .notification-unread-dot{visibility:hidden}
+.notification-empty{padding:25px 16px;text-align:center;color:var(--muted);font-size:11px}
+.notification-popover-foot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:11px 15px;border-top:1px solid var(--line)}
+.notification-alert-toggle{border:1px solid rgba(164,135,255,.26);border-radius:9px;padding:6px 10px;background:rgba(139,92,246,.12);color:#cbbdff;font-size:10px;font-weight:650;cursor:pointer}
+.notification-alert-toggle:hover{background:rgba(139,92,246,.22)}
+.notification-alert-toggle:disabled{opacity:.55;cursor:not-allowed}
+@keyframes notificationDrop{from{opacity:0;transform:translateY(-5px)}to{opacity:1;transform:translateY(0)}}
+.light-theme .notification-badge{border-color:#fff}
+.light-theme .notification-popover{background:linear-gradient(145deg,#fff,#f5f7ff);box-shadow:0 24px 70px rgba(34,47,75,.22)}
+.light-theme .notification-item:hover{background:rgba(139,92,246,.1)}
+.light-theme .notification-item.unread{background:rgba(139,92,246,.07)}
+.light-theme .notification-item-copy time{color:#7c89a0}
+.light-theme .notification-alert-toggle{color:#6447c7}
+@media(max-width:760px){.notification-popover{right:-18px}}
+@media(max-width:560px){.notification-popover{position:fixed;top:calc(70px + env(safe-area-inset-top));right:10px;width:min(370px,calc(100vw - 20px))}.notification-popover-foot{align-items:flex-start}.notification-popover-foot span{max-width:230px}}

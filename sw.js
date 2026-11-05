@@ -1,4 +1,4 @@
-const CACHE_NAME = "studytrack-shell-v9";
+const CACHE_NAME = "studytrack-shell-v10";
 const SHELL_FILES = [
   "/",
   "/index.html",
@@ -10,6 +10,7 @@ const SHELL_FILES = [
   "/js/pwa.js",
   "/js/storage.js",
   "/js/auth.js",
+  "/js/notifications.js",
   "/js/dashboard.js",
   "/js/subjects.js",
   "/js/scores.js",

@@ -167,6 +167,13 @@ def init_db() -> None:
           recipient_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
           body TEXT NOT NULL, created_at TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS notifications (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          user_id TEXT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+          kind TEXT NOT NULL, title TEXT NOT NULL, body TEXT NOT NULL DEFAULT '',
+          class_id TEXT NOT NULL DEFAULT '', peer_id TEXT NOT NULL DEFAULT '',
+          created_at TEXT NOT NULL, read_at TEXT
+        );
         CREATE TABLE IF NOT EXISTS admin_activity (
           id INTEGER PRIMARY KEY AUTOINCREMENT,
           actor_id TEXT REFERENCES users(id) ON DELETE SET NULL,
@@ -186,6 +193,7 @@ def init_db() -> None:
         CREATE INDEX IF NOT EXISTS idx_submission_files_submission ON submission_files(submission_id);
         CREATE INDEX IF NOT EXISTS idx_class_messages_thread ON class_messages(class_id,sender_id,recipient_id,id);
         CREATE INDEX IF NOT EXISTS idx_direct_messages_thread ON direct_messages(sender_id,recipient_id,id);
+        CREATE INDEX IF NOT EXISTS idx_notifications_user_unread ON notifications(user_id,read_at,id DESC);
         CREATE INDEX IF NOT EXISTS idx_admin_activity_created ON admin_activity(id DESC);
         """)
         user_columns={row[1] for row in db.execute("PRAGMA table_info(users)").fetchall()}
@@ -216,6 +224,17 @@ def init_db() -> None:
 
 def utc_now() -> str:
     return datetime.now(timezone.utc).isoformat(timespec="seconds")
+
+
+def add_notification(db: sqlite3.Connection, user_id: str, kind: str, title: str,
+                     body: str = "", class_id: str = "", peer_id: str = "") -> None:
+    """Store a short, private activity notice for one account."""
+    db.execute("""INSERT INTO notifications(user_id,kind,title,body,class_id,peer_id,created_at)
+                  VALUES(?,?,?,?,?,?,?)""",
+               (user_id, kind[:32], title[:180], body[:240], class_id[:100], peer_id[:100], utc_now()))
+    db.execute("""DELETE FROM notifications WHERE user_id=? AND id NOT IN
+                  (SELECT id FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 500)""",
+               (user_id, user_id))
 
 
 def password_digest(password: str, salt: bytes) -> bytes:
@@ -715,6 +734,36 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                 raise ValueError("This social account is already connected to a different StudyTrack account.") from exc
             return db.execute("SELECT * FROM users WHERE id=?", (user_id,)).fetchone()
 
+    def get_notifications(self, user: dict) -> None:
+        with connect_db() as db:
+            rows = db.execute("""SELECT id,kind,title,body,class_id,peer_id,created_at,read_at
+                                FROM notifications WHERE user_id=? ORDER BY id DESC LIMIT 60""",
+                              (user["id"],)).fetchall()
+            unread_count = db.execute("SELECT COUNT(*) FROM notifications WHERE user_id=? AND read_at IS NULL",
+                                      (user["id"],)).fetchone()[0]
+        self.send_json({"notifications": [dict(row) for row in rows], "unread_count": unread_count})
+
+    def mark_notifications_read(self, user: dict) -> None:
+        body = self.read_json()
+        with connect_db() as db:
+            if body.get("all") is True:
+                db.execute("UPDATE notifications SET read_at=? WHERE user_id=? AND read_at IS NULL",
+                           (utc_now(), user["id"]))
+            else:
+                raw_ids = body.get("ids", [])
+                if not isinstance(raw_ids, list) or len(raw_ids) > 100:
+                    raise ValueError("Choose no more than 100 notifications at a time.")
+                ids = []
+                for value in raw_ids:
+                    if isinstance(value, bool) or not isinstance(value, int) or value < 1:
+                        raise ValueError("A notification ID was not valid.")
+                    ids.append(value)
+                if ids:
+                    placeholders = ",".join("?" for _ in ids)
+                    db.execute(f"UPDATE notifications SET read_at=? WHERE user_id=? AND read_at IS NULL AND id IN ({placeholders})",
+                               (utc_now(), user["id"], *ids))
+        self.send_json({"ok": True})
+
     def get_oauth_providers(self, user: dict) -> None:
         with connect_db() as db:
             rows = db.execute("SELECT provider FROM oauth_accounts WHERE user_id=? ORDER BY provider", (user["id"],)).fetchall()
@@ -764,6 +813,11 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                 user = self.require_session()
                 if user:
                     self.get_user_data(user)
+                return
+            if path == "/api/notifications":
+                user = self.require_session()
+                if user:
+                    self.get_notifications(user)
                 return
             if path == "/api/admin/overview":
                 user = self.require_session()
@@ -873,6 +927,11 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                         db.execute("DELETE FROM sessions WHERE token_hash=?", (user["token_hash"],))
                     cookie = f"{COOKIE_NAME}=; Path=/; HttpOnly; SameSite=Lax; Max-Age=0" + ("; Secure" if secure_cookies_enabled() else "")
                     self.send_json({"ok": True}, cookie=cookie)
+                return
+            if path == "/api/notifications/read":
+                user = self.require_session(csrf=True)
+                if user:
+                    self.mark_notifications_read(user)
                 return
             if path == "/api/classes":
                 user = self.require_session(csrf=True)
@@ -1390,11 +1449,15 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
             record_failed_auth(attempt_key,window=600)
             self.send_error_json(HTTPStatus.NOT_FOUND,"That class code was not found.");return
         with connect_db() as db:
-            classroom=db.execute("SELECT id,name FROM classrooms WHERE join_code=?",(code,)).fetchone()
+            classroom=db.execute("SELECT id,name,teacher_id FROM classrooms WHERE join_code=?",(code,)).fetchone()
             if not classroom:
                 record_failed_auth(attempt_key,window=600)
                 self.send_error_json(HTTPStatus.NOT_FOUND,"That class code was not found.");return
-            db.execute("INSERT OR IGNORE INTO class_memberships(class_id,user_id,joined_at) VALUES(?,?,?)",(classroom["id"],user["id"],utc_now()))
+            membership=db.execute("INSERT OR IGNORE INTO class_memberships(class_id,user_id,joined_at) VALUES(?,?,?)",(classroom["id"],user["id"],utc_now()))
+            if membership.rowcount:
+                add_notification(db, classroom["teacher_id"], "class_member",
+                                 f"{user['name']} joined {classroom['name']}",
+                                 "A new student joined your class.", class_id=classroom["id"])
             log_activity(db, user["id"], f"Joined class: {classroom['name']}")
         with AUTH_LOCK:
             AUTH_ATTEMPTS.pop(attempt_key,None)
@@ -1442,10 +1505,14 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         except ValueError: raise ValueError("Choose a valid due date.")
         if not math.isfinite(maximum) or not 0<maximum<=10000: raise ValueError("Maximum score must be between 1 and 10,000.")
         with connect_db() as db:
-            if not db.execute("SELECT 1 FROM classrooms WHERE id=? AND teacher_id=?",(class_id,user["id"])).fetchone():
+            classroom=db.execute("SELECT id,name FROM classrooms WHERE id=? AND teacher_id=?",(class_id,user["id"])).fetchone()
+            if not classroom:
                 self.send_error_json(HTTPStatus.FORBIDDEN,"You can only assign work in your own class.");return
             assignment_id=secrets.token_urlsafe(12)
             db.execute("INSERT INTO assignments(id,class_id,title,instructions,subject,due_date,maximum,created_at) VALUES(?,?,?,?,?,?,?,?)",(assignment_id,class_id,title,instructions,subject,due,maximum,utc_now()))
+            for member in db.execute("SELECT user_id FROM class_memberships WHERE class_id=?",(class_id,)).fetchall():
+                add_notification(db, member["user_id"], "assignment", f"New assignment: {title}",
+                                 f"{classroom['name']} · Due {due}", class_id=class_id)
             log_activity(db, user["id"], f"Posted assignment: {title}")
         self.send_json({"ok":True,"id":assignment_id},HTTPStatus.CREATED)
 
@@ -1478,7 +1545,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
         with connect_db() as db:
             if not db.execute("SELECT 1 FROM class_memberships WHERE class_id=? AND user_id=?",(class_id,user["id"])).fetchone():
                 self.send_error_json(HTTPStatus.FORBIDDEN,"Join this class before submitting work.");return
-            assignment=db.execute("SELECT maximum,title FROM assignments WHERE id=? AND class_id=?",(assignment_id,class_id)).fetchone()
+            assignment=db.execute("SELECT a.maximum,a.title,c.teacher_id FROM assignments a JOIN classrooms c ON c.id=a.class_id WHERE a.id=? AND a.class_id=?",(assignment_id,class_id)).fetchone()
             if not assignment:
                 self.send_error_json(HTTPStatus.NOT_FOUND,"Assignment not found.");return
             existing=db.execute("SELECT id FROM submissions WHERE assignment_id=? AND student_id=?",(assignment_id,user["id"])).fetchone()
@@ -1492,6 +1559,9 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
             for filename,raw in prepared:
                 db.execute("INSERT INTO submission_files(id,submission_id,name,size,data) VALUES(?,?,?,?,?)",
                            (secrets.token_urlsafe(12),submission_id,filename,len(raw),sqlite3.Binary(raw)))
+            add_notification(db, assignment["teacher_id"], "submission",
+                             f"New work from {user['name']}", f"{user['name']} submitted {assignment['title']}.",
+                             class_id=class_id)
             log_activity(db, user["id"], f"Submitted work for: {assignment['title']}")
         self.send_json({"ok":True,"submission_id":submission_id})
 
@@ -1507,7 +1577,7 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
             if not math.isfinite(score): raise ValueError("Enter a valid score.")
         if score is None and not feedback: raise ValueError("Add a grade or feedback before saving.")
         with connect_db() as db:
-            row=db.execute("""SELECT a.maximum,a.title,s.student_id FROM submissions s JOIN assignments a ON a.id=s.assignment_id
+            row=db.execute("""SELECT a.maximum,a.title,a.class_id,s.student_id FROM submissions s JOIN assignments a ON a.id=s.assignment_id
                               JOIN classrooms c ON c.id=a.class_id
                               WHERE s.id=? AND a.class_id=? AND c.teacher_id=?""",
                            (submission_id,class_id,user["id"])).fetchone()
@@ -1516,6 +1586,8 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
             if score is not None and (score<0 or score>float(row["maximum"])):
                 raise ValueError(f"Score must be between 0 and {row['maximum']}.")
             db.execute("UPDATE submissions SET score=COALESCE(?,score),feedback=? WHERE id=?",(score,feedback,submission_id))
+            add_notification(db, row["student_id"], "grade", f"Work reviewed: {row['title']}",
+                             "Your teacher left a grade or feedback.", class_id=row["class_id"])
             log_activity(db, user["id"], f"Reviewed work for: {row['title']}", row["student_id"])
         self.send_json({"ok":True})
 
@@ -1674,11 +1746,15 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
             questions.append({"prompt": prompt, "options": options, "correctIndex": correct})
         quiz_id = secrets.token_urlsafe(12)
         with connect_db() as db:
-            if not db.execute("SELECT 1 FROM classrooms WHERE id=? AND teacher_id=?", (class_id, user["id"])).fetchone():
+            classroom = db.execute("SELECT id,name FROM classrooms WHERE id=? AND teacher_id=?", (class_id, user["id"])).fetchone()
+            if not classroom:
                 self.send_error_json(HTTPStatus.FORBIDDEN, "You can only create quizzes in your own class."); return
             db.execute("INSERT INTO quizzes(id,class_id,title,instructions,due_date,questions_json,created_at) VALUES(?,?,?,?,?,?,?)",
                        (quiz_id, class_id, title, instructions, due_date,
                         json.dumps(questions, ensure_ascii=False, separators=(",", ":")), utc_now()))
+            for member in db.execute("SELECT user_id FROM class_memberships WHERE class_id=?", (class_id,)).fetchall():
+                add_notification(db, member["user_id"], "quiz", f"New quiz: {title}",
+                                 f"{classroom['name']} · Due {due_date}", class_id=class_id)
             log_activity(db, user["id"], f"Published quiz: {title}")
         self.send_json({"ok": True, "quiz_id": quiz_id}, HTTPStatus.CREATED)
 
@@ -1716,6 +1792,9 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                               VALUES(?,?,?,?,?,?,?)""",
                            (secrets.token_urlsafe(12), quiz_id, user["id"], correct_count, len(questions), utc_now(),
                             json.dumps(answers, separators=(",", ":"))))
+                add_notification(db, quiz["teacher_id"], "quiz_submission",
+                                 f"{user['name']} completed a quiz", f"{user['name']} submitted {quiz['title']}.",
+                                 class_id=quiz["class_id"])
                 log_activity(db, user["id"], f"Submitted quiz: {quiz['title']}")
             except sqlite3.IntegrityError:
                 self.send_error_json(HTTPStatus.CONFLICT, "You have already submitted this quiz."); return
@@ -1832,6 +1911,8 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                                 (user["id"], recipient["id"], message, utc_now(), *attachment_values[:3],
                                  sqlite3.Binary(attachment_values[3]) if prepared_attachment else None))
             message_id = cursor.lastrowid
+            add_notification(db, recipient["id"], "direct_chat", f"New message from {user['name']}",
+                             "Open your private chat to read it.", peer_id=user["id"])
             log_activity(db, user["id"], "Sent a private email chat message", recipient["id"])
         self.send_json({"ok": True, "id": message_id}, HTTPStatus.CREATED)
 
@@ -1901,6 +1982,8 @@ class StudyTrackHandler(BaseHTTPRequestHandler):
                               (class_id,user["id"],recipient_id,message,utc_now()))
             message_id=cursor.lastrowid
             created_at=db.execute("SELECT created_at FROM class_messages WHERE id=?",(message_id,)).fetchone()["created_at"]
+            add_notification(db, recipient_id, "class_chat", f"New class message from {user['name']}",
+                             "Open your class chat to read it.", class_id=class_id, peer_id=user["id"])
             log_activity(db, user["id"], "Sent a private class chat message", recipient_id)
         self.send_json({"ok":True,"id":message_id,"created_at":created_at},HTTPStatus.CREATED)
 

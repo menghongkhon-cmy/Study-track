@@ -36,6 +36,8 @@ export async function getAppSettings(){return apiRequest("/api/app/settings");}
 export async function updateAdminSettings(settings){return apiRequest("/api/admin/settings",{method:"PUT",body:settings,authWrite:true});}
 export async function updateAccount(name){const payload=await apiRequest("/api/account",{method:"PATCH",body:{name},authWrite:true});sessionState.user=payload.user||sessionState.user;}
 export async function deleteRemoteData(){await apiRequest("/api/data",{method:"DELETE",authWrite:true});}
+export function getNotifications(){return apiRequest("/api/notifications");}
+export function updateNotificationsRead(payload){return apiRequest("/api/notifications/read",{method:"POST",body:payload,authWrite:true});}
 
 sessionState.saveData=(name,value)=>{
   if(!sessionState.active||sessionState.suppressSync)return Promise.resolve();
